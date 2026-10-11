@@ -1,127 +1,71 @@
-name: Build Supersonic APK
+name: Build Android APK
 
 on:
   push:
     branches:
-      - supersonic-ui
-  pull_request:
-    branches:
-      - supersonic-ui
+      - main
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
-  build:
-    runs-on: ubuntu-22.04
-    env:
-      GPLAY_KEYSTORE_PASSWORD: ${{ secrets.GPLAY_KEYSTORE_PASSWORD }}
-      CURSEFORGE_API_KEY: ${{ secrets.CURSEFORGE_API_KEY }}
+  build-apk:
+    runs-on: ubuntu-latest
+
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          submodules: "recursive"
+    - name: Checkout Repository
+      uses: actions/checkout@v4
 
-      - name: Set up JDK 21
-        uses: actions/setup-java@v3
-        with:
-          distribution: 'temurin'
-          java-version: '21'
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
 
-      - name: Get LTW
-        run: |
-          apt update && apt install wget
-          cd app_pojavlauncher/libs
-          wget https://github.com/PojavLauncherTeam/LTW/releases/latest/download/ltw-release.aar
+    - name: Install System Dependencies for Buildozer
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y build-essential libltdl-dev libffi-dev libssl-dev python3-dev zip unzip openjdk-17-jdk autoconf libtool pkg-config zlib1g-dev libncurses5-dev libncursesw5-dev libtinfo5 cmake
 
-      - name: Get JRE 8
-        uses: dawidd6/action-download-artifact@v9
-        with:
-          workflow: build.yml
-          path: app_pojavlauncher/src/main/assets/components/jre
-          workflow_conclusion: success
-          repo: PojavLauncherTeam/android-openjdk-build-multiarch
-          branch: buildjre8
-          name: jre8-pojav
+    - name: Install Buildozer and Cython
+      run: |
+        python -m pip install --upgrade pip
+        pip install buildozer cython virtualenv
 
-      - name: Get JRE17
-        uses: dawidd6/action-download-artifact@v9
-        with:
-          workflow: build.yml
-          path: app_pojavlauncher/src/main/assets/components/jre-new
-          workflow_conclusion: success
-          repo: PojavLauncherTeam/android-openjdk-build-multiarch
-          branch: buildjre17-21
-          name: jre17-pojav
+    - name: Initialize and Configure buildozer.spec
+      run: |
+        buildozer init
+        
+        # Automatically update the default spec file for Supersonic Client
+        sed -i 's/title = My Application/title = Supersonic Client/g' buildozer.spec
+        sed -i 's/package.name = myapp/package.name = supersonicclient/g' buildozer.spec
+        sed -i 's/package.domain = org.test/package.domain = com.supersonic/g' buildozer.spec
+        sed -i 's/source.include_exts = py,png,jpg,kv,atlas/source.include_exts = py,png,jpg,kv,atlas,json/g' buildozer.spec
+        
+        # Adding basic requirements (excluding customtkinter as it crashes Android builds)
+        sed -i 's/requirements = python3,kivy/requirements = python3,requests,pillow/g' buildozer.spec
 
-      - name: Get JRE21
-        uses: dawidd6/action-download-artifact@v9
-        with:
-          workflow: build.yml
-          path: app_pojavlauncher/src/main/assets/components/jre-21
-          workflow_conclusion: success
-          repo: PojavLauncherTeam/android-openjdk-build-multiarch
-          branch: buildjre17-21
-          name: jre21-pojav
+    - name: Build APK with Buildozer
+      run: |
+        # yes command is used to auto-accept Android SDK/NDK licenses
+        yes | buildozer -v android debug
 
-      - uses: gradle/actions/setup-gradle@v4
-        with:
-          gradle-version: "8.11"
+    - name: Package APK into Zip
+      run: |
+        zip -j supersonic-client-android.zip bin/*.apk
 
-      - name: Build JRE JAR files
-        run: |
-          ./scripts/languagelist_updater.sh
-          mkdir out
-          gradle :jre_lwjgl3glfw:build --no-daemon
+    - name: Upload Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: supersonic-client-apk-zip
+        path: supersonic-client-android.zip
 
-      - name: Set up JDK 17
-        uses: actions/setup-java@v3
-        with:
-          distribution: 'temurin'
-          java-version: '17'
-
-      - name: Build Debug APK with Supersonic UI
-        run: |
-          gradle :app_pojavlauncher:assembleDebug
-          mv app_pojavlauncher/build/outputs/apk/debug/app_pojavlauncher-debug.apk out/Supersonic-debug.apk
-
-      - name: Build APK without runtime
-        run: |
-          rm -r app_pojavlauncher/src/main/assets/components/jre
-          rm -r app_pojavlauncher/src/main/assets/components/jre-new
-          rm -r app_pojavlauncher/src/main/assets/components/jre-21
-          gradle assembleDebug
-          mv app_pojavlauncher/build/outputs/apk/debug/app_pojavlauncher-debug.apk out/Supersonic-debug-noruntime.apk
-
-      - name: Gen md5sums
-        run: |
-          md5sum out/Supersonic-debug.apk > out/Supersonic-debug.md5
-          md5sum out/Supersonic-debug-noruntime.apk > out/Supersonic-debug-noruntime.md5
-
-      - name: Upload Supersonic APK (with runtime)
-        uses: actions/upload-artifact@v4
-        with:
-          name: Supersonic-APK-with-runtime
-          path: out/Supersonic-debug.*
-
-      - name: Upload Supersonic APK (without runtime)
-        uses: actions/upload-artifact@v4
-        with:
-          name: Supersonic-APK-no-runtime
-          path: out/Supersonic-debug-noruntime.*
-
-      - name: Create Release Notes
-        run: |
-          echo "# Supersonic Launcher Build" > out/BUILD_INFO.md
-          echo "**Build Date:** $(date)" >> out/BUILD_INFO.md
-          echo "**Branch:** supersonic-ui" >> out/BUILD_INFO.md
-          echo "**Commit:** $(git rev-parse --short HEAD)" >> out/BUILD_INFO.md
-          echo "" >> out/BUILD_INFO.md
-          echo "## Files" >> out/BUILD_INFO.md
-          echo "- Supersonic-debug.apk (with full JRE)" >> out/BUILD_INFO.md
-          echo "- Supersonic-debug-noruntime.apk (without JRE)" >> out/BUILD_INFO.md
-
-      - name: Upload Build Info
-        uses: actions/upload-artifact@v4
-        with:
-          name: Build-Info
-          path: out/BUILD_INFO.md
+    - name: Publish to GitHub Releases
+      uses: softprops/action-gh-release@v2
+      with:
+        tag_name: latest
+        name: "Supersonic Client Latest Build"
+        files: supersonic-client-android.zip
+        make_latest: true
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
