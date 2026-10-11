@@ -1,0 +1,214 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="12dp">
+
+    <!-- Hero card -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@drawable/bg_supersonic_card"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:padding="16dp">
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/supersonic_app_name"
+                android:textAllCaps="true"
+                android:textColor="@color/primary_text"
+                android:textSize="22sp"
+                android:textStyle="bold|italic" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:text="@string/supersonic_tagline"
+                android:textColor="@color/supersonic_accent_light"
+                android:textSize="13sp" />
+
+            <TextView
+                android:id="@+id/home_version"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:textColor="@color/secondary_text"
+                android:textSize="11sp" />
+        </LinearLayout>
+
+        <ImageView
+            android:layout_width="84dp"
+            android:layout_height="84dp"
+            android:layout_marginStart="8dp"
+            android:importantForAccessibility="no"
+            android:scaleType="fitCenter"
+            android:src="@drawable/ic_supersonic_logo" />
+    </LinearLayout>
+
+    <!-- Real device/launcher stats (no fake numbers) -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10dp"
+        android:background="@drawable/bg_supersonic_card"
+        android:baselineAligned="false"
+        android:orientation="horizontal"
+        android:paddingVertical="12dp">
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:gravity="center"
+            android:orientation="vertical">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/supersonic_home_stat_ram"
+                android:textColor="@color/secondary_text"
+                android:textSize="11sp" />
+
+            <TextView
+                android:id="@+id/home_stat_ram_value"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:textColor="@color/primary_text"
+                android:textSize="16sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:gravity="center"
+            android:orientation="vertical">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/supersonic_home_stat_renderer"
+                android:textColor="@color/secondary_text"
+                android:textSize="11sp" />
+
+            <TextView
+                android:id="@+id/home_stat_renderer_value"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:textColor="@color/supersonic_accent_light"
+                android:textSize="16sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:gravity="center"
+            android:orientation="vertical">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/supersonic_home_stat_device_ram"
+                android:textColor="@color/secondary_text"
+                android:textSize="11sp" />
+
+            <TextView
+                android:id="@+id/home_stat_device_ram_value"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:textColor="@color/primary_text"
+                android:textSize="16sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="4dp"
+        android:layout_marginTop="16dp"
+        android:layout_marginBottom="6dp"
+        android:text="@string/supersonic_home_quick_actions"
+        android:textColor="@color/secondary_text"
+        android:textSize="12sp"
+        android:textStyle="bold" />
+
+    <!-- Same button ids as stock PojavLauncher: MainMenuFragment wiring is unchanged -->
+    <com.kdt.mcgui.LauncherMenuButton
+        android:id="@+id/news_button"
+        style="@style/LauncherMenuButton"
+        android:layout_width="match_parent"
+        android:layout_height="52dp"
+        android:layout_marginBottom="6dp"
+        android:background="@drawable/bg_supersonic_card_ripple"
+        android:drawableStart="@drawable/ic_menu_news"
+        android:text="@string/mcl_tab_wiki" />
+
+    <com.kdt.mcgui.LauncherMenuButton
+        android:id="@+id/discord_button"
+        style="@style/LauncherMenuButton"
+        android:layout_width="match_parent"
+        android:layout_height="52dp"
+        android:layout_marginBottom="6dp"
+        android:background="@drawable/bg_supersonic_card_ripple"
+        android:drawableStart="@drawable/ic_discord"
+        android:text="@string/mcl_button_discord" />
+
+    <com.kdt.mcgui.LauncherMenuButton
+        android:id="@+id/custom_control_button"
+        style="@style/LauncherMenuButton"
+        android:layout_width="match_parent"
+        android:layout_height="52dp"
+        android:layout_marginBottom="6dp"
+        android:background="@drawable/bg_supersonic_card_ripple"
+        android:drawableStart="@drawable/ic_menu_custom_controls"
+        android:text="@string/mcl_option_customcontrol" />
+
+    <com.kdt.mcgui.LauncherMenuButton
+        android:id="@+id/install_jar_button"
+        style="@style/LauncherMenuButton"
+        android:layout_width="match_parent"
+        android:layout_height="52dp"
+        android:layout_marginBottom="6dp"
+        android:background="@drawable/bg_supersonic_card_ripple"
+        android:drawableStart="@drawable/ic_menu_install_jar"
+        android:text="@string/main_install_jar_file" />
+
+    <com.kdt.mcgui.LauncherMenuButton
+        android:id="@+id/share_logs_button"
+        style="@style/LauncherMenuButton"
+        android:layout_width="match_parent"
+        android:layout_height="52dp"
+        android:layout_marginBottom="6dp"
+        android:background="@drawable/bg_supersonic_card_ripple"
+        android:drawableStart="@android:drawable/ic_menu_share"
+        android:text="@string/main_share_logs" />
+
+    <com.kdt.mcgui.LauncherMenuButton
+        android:id="@+id/open_files_button"
+        style="@style/LauncherMenuButton"
+        android:layout_width="match_parent"
+        android:layout_height="52dp"
+        android:layout_marginBottom="6dp"
+        android:background="@drawable/bg_supersonic_card_ripple"
+        android:drawableStart="@drawable/ic_folder"
+        android:text="@string/mcl_button_open_directory" />
+</LinearLayout>

@@ -6,14 +6,28 @@
     android:layout_height="match_parent"
     android:background="@android:color/transparent">
 
+    <!-- Supersonic logo in the top bar -->
+    <ImageView
+        android:id="@+id/header_logo"
+        android:layout_width="@dimen/_44sdp"
+        android:layout_height="@dimen/_52sdp"
+        android:importantForAccessibility="no"
+        android:padding="@dimen/_6sdp"
+        android:scaleType="fitCenter"
+        android:src="@drawable/ic_supersonic_logo"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
     <com.kdt.mcgui.mcAccountSpinner
         android:id="@+id/account_spinner"
-        android:layout_width="match_parent"
+        android:layout_width="0dp"
         android:layout_height="@dimen/_52sdp"
 
         android:dropDownWidth="@dimen/_250sdp"
         android:dropDownVerticalOffset="@dimen/_52sdp"
 
+        app:layout_constraintEnd_toStartOf="@id/setting_button"
+        app:layout_constraintStart_toEndOf="@id/header_logo"
         app:layout_constraintTop_toTopOf="parent" />
 
     <ImageButton
@@ -21,9 +35,10 @@
         android:layout_width="@dimen/_52sdp"
         android:layout_height="@dimen/_52sdp"
         android:background="?attr/selectableItemBackground"
-        android:src="@drawable/ic_menu_settings"
-        android:scaleType="fitCenter"
+        android:contentDescription="@string/supersonic_nav_settings"
         android:paddingVertical="@dimen/_8sdp"
+        android:scaleType="fitCenter"
+        android:src="@drawable/ic_menu_settings"
 
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
@@ -37,15 +52,20 @@
         app:layout_constraintBottom_toTopOf="@+id/progress_layout"
         app:layout_constraintTop_toBottomOf="@+id/account_spinner" />
 
-
     <com.kdt.mcgui.ProgressLayout
         android:id="@+id/progress_layout"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
 
+        app:layout_constraintBottom_toTopOf="@+id/supersonic_nav_bar" />
+
+    <!-- Bottom navigation: Home / Modpacks / Addons / Servers / Settings -->
+    <com.kdt.mcgui.SupersonicNavBar
+        android:id="@+id/supersonic_nav_bar"
+        android:layout_width="match_parent"
+        android:layout_height="60dp"
+        android:background="@color/background_bottom_bar"
+        android:orientation="horizontal"
         app:layout_constraintBottom_toBottomOf="parent" />
-
-
-
 
 </androidx.constraintlayout.widget.ConstraintLayout>
