@@ -7,7 +7,15 @@
     app:key=""
     >
 
-    <net.kdt.pojavlaunch.prefs.BackButtonPreference/>
+    <!-- Real info about this phone (filled in LauncherPreferenceFragment) -->
+    <PreferenceCategory android:title="@string/supersonic_pref_system_overview">
+        <Preference
+            android:key="system_overview"
+            android:title="@string/supersonic_pref_system_overview_title"
+            android:selectable="false"
+            android:persistent="false"
+            />
+    </PreferenceCategory>
 
     <PreferenceCategory
         android:title="@string/preference_category_main_categories"
@@ -15,10 +23,18 @@
 
         <Preference
             android:key="video_screen_setting"
-            android:title="@string/preference_video_title"
-            android:summary="@string/preference_video_description"
+            android:title="@string/supersonic_pref_performance_title"
+            android:summary="@string/supersonic_pref_performance_desc"
             android:fragment="net.kdt.pojavlaunch.prefs.screens.LauncherPreferenceVideoFragment"
             android:icon="@drawable/ic_setting_video"
+            />
+
+        <Preference
+            android:key="java_screen_setting"
+            android:title="@string/supersonic_pref_minecraft_title"
+            android:summary="@string/supersonic_pref_minecraft_desc"
+            android:fragment="net.kdt.pojavlaunch.prefs.screens.LauncherPreferenceJavaFragment"
+            android:icon="@drawable/ic_setting_java_runtime"
             />
 
         <Preference
@@ -30,44 +46,43 @@
             />
 
         <Preference
-            android:key="java_screen_setting"
-            android:title="@string/preference_java_title"
-            android:summary="@string/preference_java_description"
-            android:fragment="net.kdt.pojavlaunch.prefs.screens.LauncherPreferenceJavaFragment"
-            android:icon="@drawable/ic_setting_java_runtime"
-            />
-
-        <Preference
             android:key="misc_screen_setting"
-            android:title="@string/preference_misc_title"
-            android:summary="@string/preference_misc_description"
+            android:title="@string/supersonic_pref_launcher_title"
+            android:summary="@string/supersonic_pref_launcher_desc"
             android:fragment="net.kdt.pojavlaunch.prefs.screens.LauncherPreferenceMiscellaneousFragment"
             android:icon="@drawable/ic_setting_misc"
             />
 
-
         <Preference
             android:key="experimental_screen_setting"
-            android:title="@string/preference_experimental_title"
-            android:summary="@string/preference_experimental_description"
+            android:title="@string/supersonic_pref_advanced_title"
+            android:summary="@string/supersonic_pref_advanced_desc"
             android:fragment="net.kdt.pojavlaunch.prefs.screens.LauncherPreferenceExperimentalFragment"
             />
     </PreferenceCategory>
 
-    <SwitchPreference
-        android:title="@string/preference_force_english_title"
-        android:key="force_english"
-        android:summary="@string/preference_force_english_description"
-        />
+    <PreferenceCategory android:title="@string/supersonic_pref_category_general">
+        <SwitchPreference
+            android:title="@string/preference_force_english_title"
+            android:key="force_english"
+            android:summary="@string/preference_force_english_description"
+            />
 
-    <Preference
-        android:title="@string/preference_ask_for_notification_title"
-        android:summary="@string/preference_ask_for_notification_description"
-        android:key="notification_permission_request"
-        />
+        <Preference
+            android:title="@string/preference_ask_for_notification_title"
+            android:summary="@string/preference_ask_for_notification_description"
+            android:key="notification_permission_request"
+            />
+    </PreferenceCategory>
 
-
-
-
+    <PreferenceCategory android:title="@string/supersonic_pref_category_about">
+        <Preference
+            android:key="about_supersonic"
+            android:title="@string/supersonic_pref_about_title"
+            android:summary="@string/supersonic_pref_about_desc"
+            android:selectable="false"
+            android:persistent="false"
+            />
+    </PreferenceCategory>
 
 </PreferenceScreen>
