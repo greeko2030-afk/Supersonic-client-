@@ -4,12 +4,24 @@
     <color name="control_button_pressed_color">#4D000000</color>
 
     <color name="minebutton_color">#57CC33</color>
-    <color name="background_app">#181818</color>
-    <color name="divider">@color/background_overlay</color>
-    <color name="background_overlay">#464646</color>
-    <color name="background_status_bar">#242424</color>
-    <color name="background_bottom_bar">#232323</color>
+    <color name="background_app">#041827</color>
+    <color name="divider">#1A88D9FF</color>
+    <color name="background_overlay">#0A2240</color>
+    <color name="background_status_bar">#061C2E</color>
+    <color name="background_bottom_bar">#051A2D</color>
 
-    <color name="primary_text">#FFFFFF</color>
-    <color name="secondary_text">#B2B2B2</color>
+    <color name="primary_text">#F3F8FF</color>
+    <color name="secondary_text">#B7D6F7</color>
+
+    <color name="supersonic_background">#021827</color>
+    <color name="supersonic_background_deep">#010E1A</color>
+    <color name="supersonic_panel">#071F36</color>
+    <color name="supersonic_panel_alt">#0A2743</color>
+    <color name="supersonic_glow">#38C9FF</color>
+    <color name="supersonic_glow_soft">#78E2FF</color>
+    <color name="supersonic_accent">#1FA8FF</color>
+    <color name="supersonic_purple">#A66BFF</color>
+    <color name="supersonic_green">#30E8A8</color>
+    <color name="supersonic_orange">#FF9F43</color>
+    <color name="supersonic_card_text">#D8ECFF</color>
 </resources>
