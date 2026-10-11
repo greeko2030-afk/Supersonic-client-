@@ -29,7 +29,7 @@
         android:hasFragileUserData="true"
         android:icon="@mipmap/ic_launcher"
         android:isGame="true"
-        android:label="@string/app_name"
+        android:label="@string/supersonic_app_name"
         android:process=":launcher"
         android:resizeableActivity="true"
         android:roundIcon="@mipmap/ic_launcher_round"
@@ -45,7 +45,7 @@
         <activity
             android:name=".TestStorageActivity"
             android:exported="true"
-            android:label="@string/app_short_name"
+            android:label="@string/supersonic_short_name"
             android:launchMode="singleTop">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -55,7 +55,7 @@
         </activity>
         <activity
             android:name=".LauncherActivity"
-            android:label="@string/app_short_name"
+            android:label="@string/supersonic_short_name"
             android:windowSoftInputMode="adjustResize"/>
         <activity
             android:name=".ImportControlActivity"
