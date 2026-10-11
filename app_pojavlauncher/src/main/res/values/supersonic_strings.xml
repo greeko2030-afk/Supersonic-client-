@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Branding (used by AndroidManifest.xml, no translation needed) -->
+    <string name="supersonic_app_name">Supersonic Client</string>
+    <string name="supersonic_short_name">Supersonic</string>
+    <string name="supersonic_tagline">The next generation Minecraft launcher</string>
+
+    <!-- Navigation -->
+    <string name="supersonic_nav_home">Home</string>
+    <string name="supersonic_nav_modpacks">Modpacks</string>
+    <string name="supersonic_nav_addons">Addons</string>
+    <string name="supersonic_nav_servers">Servers</string>
+    <string name="supersonic_nav_settings">Settings</string>
+
+    <!-- Placeholder screens -->
+    <string name="supersonic_coming_soon_title">Coming soon</string>
+    <string name="supersonic_coming_soon_addons">One-tap mod installs (Sodium, Iris, Lithium...) into your selected profile are being built.</string>
+    <string name="supersonic_coming_soon_servers">A saved server list with quick join is being built.</string>
+
+    <!-- Home -->
+    <string name="supersonic_home_quick_actions">QUICK ACTIONS</string>
+    <string name="supersonic_home_stat_ram">RAM allocated</string>
+    <string name="supersonic_home_stat_renderer">Renderer</string>
+    <string name="supersonic_home_stat_device_ram">Device RAM</string>
+
+    <!-- Settings -->
+    <string name="supersonic_pref_system_overview">System overview</string>
+    <string name="supersonic_pref_system_overview_title">This device</string>
+    <string name="supersonic_pref_category_general">General</string>
+    <string name="supersonic_pref_category_about">About</string>
+    <string name="supersonic_pref_performance_title">Performance</string>
+    <string name="supersonic_pref_performance_desc">Renderer, resolution scale, VSync and display options</string>
+    <string name="supersonic_pref_minecraft_title">Minecraft &amp; Java</string>
+    <string name="supersonic_pref_minecraft_desc">RAM allocation, Java runtime, JVM arguments and sandbox</string>
+    <string name="supersonic_pref_launcher_title">Downloads &amp; Launcher</string>
+    <string name="supersonic_pref_launcher_desc">Download source, file verification and library checks</string>
+    <string name="supersonic_pref_advanced_title">Advanced</string>
+    <string name="supersonic_pref_advanced_desc">Experimental options for testing</string>
+    <string name="supersonic_pref_about_title">Supersonic Client</string>
+    <string name="supersonic_pref_about_desc">The next generation Minecraft launcher.</string>
+</resources>

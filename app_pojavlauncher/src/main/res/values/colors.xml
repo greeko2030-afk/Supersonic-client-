@@ -3,13 +3,20 @@
     <color name="control_button_color">#4CC4C4C4</color>
     <color name="control_button_pressed_color">#4D000000</color>
 
-    <color name="minebutton_color">#57CC33</color>
-    <color name="background_app">#181818</color>
+    <!-- Supersonic Client palette (dark navy + neon blue) -->
+    <color name="minebutton_color">#1E90FF</color>
+    <color name="background_app">#070D1F</color>
     <color name="divider">@color/background_overlay</color>
-    <color name="background_overlay">#464646</color>
-    <color name="background_status_bar">#242424</color>
-    <color name="background_bottom_bar">#232323</color>
+    <color name="background_overlay">#16264D</color>
+    <color name="background_status_bar">#0A1230</color>
+    <color name="background_bottom_bar">#0A1226</color>
 
     <color name="primary_text">#FFFFFF</color>
-    <color name="secondary_text">#B2B2B2</color>
+    <color name="secondary_text">#9FB3D9</color>
+
+    <color name="supersonic_accent">#1E90FF</color>
+    <color name="supersonic_accent_light">#22D3EE</color>
+    <color name="supersonic_card">#0D1833</color>
+    <color name="supersonic_card_stroke">#1F4FA8</color>
+    <color name="supersonic_nav_idle">#8FA3CC</color>
 </resources>
