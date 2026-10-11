@@ -22,14 +22,17 @@ import androidx.fragment.app.FragmentContainerView;
 import androidx.fragment.app.FragmentManager;
 
 import com.kdt.mcgui.ProgressLayout;
+import com.kdt.mcgui.SupersonicNavBar;
 import com.kdt.mcgui.mcAccountSpinner;
 
 import net.kdt.pojavlaunch.contracts.OpenDocumentWithExtension;
 import net.kdt.pojavlaunch.extra.ExtraConstants;
 import net.kdt.pojavlaunch.extra.ExtraCore;
 import net.kdt.pojavlaunch.extra.ExtraListener;
+import net.kdt.pojavlaunch.fragments.ComingSoonFragment;
 import net.kdt.pojavlaunch.fragments.MainMenuFragment;
 import net.kdt.pojavlaunch.fragments.MicrosoftLoginFragment;
+import net.kdt.pojavlaunch.fragments.SearchModFragment;
 import net.kdt.pojavlaunch.fragments.SelectAuthFragment;
 import net.kdt.pojavlaunch.lifecycle.ContextAwareDoneListener;
 import net.kdt.pojavlaunch.lifecycle.ContextExecutor;
@@ -62,17 +65,20 @@ public class LauncherActivity extends BaseActivity {
     private mcAccountSpinner mAccountSpinner;
     private FragmentContainerView mFragmentView;
     private ImageButton mSettingsButton;
+    private SupersonicNavBar mNavBar;
     private ProgressLayout mProgressLayout;
     private ProgressServiceKeeper mProgressServiceKeeper;
     private ModloaderInstallTracker mInstallTracker;
     private NotificationManager mNotificationManager;
 
-    /* Allows to switch from one button "type" to another */
+    /* Keeps the bottom navigation highlight in sync with the visible fragment */
     private final FragmentManager.FragmentLifecycleCallbacks mFragmentCallbackListener = new FragmentManager.FragmentLifecycleCallbacks() {
         @Override
         public void onFragmentResumed(@NonNull FragmentManager fm, @NonNull Fragment f) {
-            mSettingsButton.setImageDrawable(ContextCompat.getDrawable(getBaseContext(), f instanceof MainMenuFragment
-                    ? R.drawable.ic_menu_settings : R.drawable.ic_menu_home));
+            // Keep the Supersonic navigation highlight in sync with the visible screen.
+            // Screens that are not a tab (profile editor, login...) keep the current highlight.
+            int tab = tabForFragment(f);
+            if(tab >= 0 && mNavBar != null) mNavBar.setSelectedTab(tab);
         }
     };
 
@@ -93,15 +99,7 @@ public class LauncherActivity extends BaseActivity {
     };
 
     /* Listener for the settings fragment */
-    private final View.OnClickListener mSettingButtonListener = v -> {
-        Fragment fragment = getSupportFragmentManager().findFragmentById(mFragmentView.getId());
-        if(fragment instanceof MainMenuFragment){
-            Tools.swapFragment(this, LauncherPreferenceFragment.class, SETTING_FRAGMENT_TAG, null);
-        } else{
-            // The setting button doubles as a home button now
-            Tools.backToMainMenu(this);
-        }
-    };
+    private final View.OnClickListener mSettingButtonListener = v -> openTab(SupersonicNavBar.TAB_SETTINGS);
 
     private final ExtraListener<Boolean> mLaunchGameListener = (key, value) -> {
         if(mProgressLayout.hasProcesses()){
@@ -304,6 +302,50 @@ public class LauncherActivity extends BaseActivity {
         return null;
     }
 
+    /** Maps a visible fragment to a Supersonic navigation tab, or -1 if it is not a tab screen. */
+    private int tabForFragment(Fragment fragment) {
+        if(fragment instanceof MainMenuFragment) return SupersonicNavBar.TAB_HOME;
+        if(fragment instanceof SearchModFragment) return SupersonicNavBar.TAB_MODPACKS;
+        if(fragment instanceof LauncherPreferenceFragment) return SupersonicNavBar.TAB_SETTINGS;
+        if(fragment instanceof ComingSoonFragment) {
+            Bundle arguments = fragment.getArguments();
+            return arguments != null ? arguments.getInt(ComingSoonFragment.ARG_TAB, -1) : -1;
+        }
+        return -1;
+    }
+
+    /** Opens one of the five navigation tabs, always on top of the root (Home) fragment. */
+    private void openTab(int tab) {
+        Fragment current = getSupportFragmentManager().findFragmentById(mFragmentView.getId());
+        if(current != null && tabForFragment(current) == tab) return; // already showing it
+
+        // Drop everything above the root so tabs never pile up in the back stack
+        Tools.backToMainMenu(this);
+
+        switch (tab) {
+            case SupersonicNavBar.TAB_HOME:
+                break;
+            case SupersonicNavBar.TAB_MODPACKS:
+                Tools.swapFragment(this, SearchModFragment.class, SearchModFragment.TAG, null);
+                break;
+            case SupersonicNavBar.TAB_ADDONS:
+                Tools.swapFragment(this, ComingSoonFragment.class, ComingSoonFragment.TAG,
+                        ComingSoonFragment.args(SupersonicNavBar.TAB_ADDONS,
+                                R.string.supersonic_nav_addons, R.drawable.ic_nav_addons,
+                                R.string.supersonic_coming_soon_addons));
+                break;
+            case SupersonicNavBar.TAB_SERVERS:
+                Tools.swapFragment(this, ComingSoonFragment.class, ComingSoonFragment.TAG,
+                        ComingSoonFragment.args(SupersonicNavBar.TAB_SERVERS,
+                                R.string.supersonic_nav_servers, R.drawable.ic_nav_servers,
+                                R.string.supersonic_coming_soon_servers));
+                break;
+            case SupersonicNavBar.TAB_SETTINGS:
+                Tools.swapFragment(this, LauncherPreferenceFragment.class, SETTING_FRAGMENT_TAG, null);
+                break;
+        }
+    }
+
     private void checkNotificationPermission() {
         if(LauncherPreferences.PREF_SKIP_NOTIFICATION_PERMISSION_CHECK ||
             checkForNotificationPermission()) {
@@ -354,6 +396,9 @@ public class LauncherActivity extends BaseActivity {
     private void bindViews(){
         mFragmentView = findViewById(R.id.container_fragment);
         mSettingsButton = findViewById(R.id.setting_button);
+        mNavBar = findViewById(R.id.supersonic_nav_bar);
+        mNavBar.setOnTabSelectedListener(this::openTab);
+        mNavBar.setSelectedTab(SupersonicNavBar.TAB_HOME);
         mAccountSpinner = findViewById(R.id.account_spinner);
         mProgressLayout = findViewById(R.id.progress_layout);
     }
