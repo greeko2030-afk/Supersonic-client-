@@ -33,35 +33,47 @@ jobs:
           cd app_pojavlauncher/libs
           wget https://github.com/PojavLauncherTeam/LTW/releases/latest/download/ltw-release.aar
 
-      - name: Get JRE 8
-        uses: dawidd6/action-download-artifact@v9
-        with:
-          workflow: build.yml
-          path: app_pojavlauncher/src/main/assets/components/jre
-          workflow_conclusion: success
-          repo: PojavLauncherTeam/android-openjdk-build-multiarch
-          branch: buildjre8
-          name: jre8-pojav
+      # The old JRE source (PojavLauncherTeam/android-openjdk-build-multiarch) is archived and its
+      # CI artifacts have expired, so "Get JRE" failed with "no matching workflow run found".
+      # The official Gladiolus release APK already contains JRE 8, 17 and 21, so we take them from there.
+      - name: Get Java runtimes (JRE 8 / 17 / 21) from the official release APK
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p runtime_src runtime_extract
+          gh release download gladiolus --repo PojavLauncherTeam/PojavLauncher --pattern '*.apk' --dir runtime_src
+          ls -lh runtime_src
 
-      - name: Get JRE17
-        uses: dawidd6/action-download-artifact@v9
-        with:
-          workflow: build.yml
-          path: app_pojavlauncher/src/main/assets/components/jre-new
-          workflow_conclusion: success
-          repo: PojavLauncherTeam/android-openjdk-build-multiarch
-          branch: buildjre17-21
-          name: jre17-pojav
+          RUNTIME_APK=""
+          for f in runtime_src/*.apk; do
+            if unzip -l "$f" | grep -q 'assets/components/jre-new/'; then
+              RUNTIME_APK="$f"
+              break
+            fi
+          done
+          if [ -z "$RUNTIME_APK" ]; then
+            echo "::error::No APK with bundled Java runtimes was found in the release"
+            exit 1
+          fi
+          echo "Using $RUNTIME_APK"
 
-      - name: Get JRE21
-        uses: dawidd6/action-download-artifact@v9
-        with:
-          workflow: build.yml
-          path: app_pojavlauncher/src/main/assets/components/jre-21
-          workflow_conclusion: success
-          repo: PojavLauncherTeam/android-openjdk-build-multiarch
-          branch: buildjre17-21
-          name: jre21-pojav
+          # jre-21 may be missing in very old releases, so do not fail on unmatched patterns here
+          unzip -q -o "$RUNTIME_APK" 'assets/components/jre/*' 'assets/components/jre-new/*' 'assets/components/jre-21/*' -d runtime_extract || true
+
+          for d in jre jre-new jre-21; do
+            if [ -d "runtime_extract/assets/components/$d" ]; then
+              mkdir -p "app_pojavlauncher/src/main/assets/components/$d"
+              cp -r "runtime_extract/assets/components/$d/." "app_pojavlauncher/src/main/assets/components/$d/"
+              echo "Installed $d"
+            else
+              echo "::warning::$d was not found in the release APK"
+            fi
+          done
+
+          test -d app_pojavlauncher/src/main/assets/components/jre
+          test -d app_pojavlauncher/src/main/assets/components/jre-new
+          rm -rf runtime_src runtime_extract
 
       - uses: gradle/actions/setup-gradle@v4
         with:
@@ -86,9 +98,9 @@ jobs:
 
       - name: Build APK without runtime
         run: |
-          rm -r app_pojavlauncher/src/main/assets/components/jre
-          rm -r app_pojavlauncher/src/main/assets/components/jre-new
-          rm -r app_pojavlauncher/src/main/assets/components/jre-21
+          rm -rf app_pojavlauncher/src/main/assets/components/jre
+          rm -rf app_pojavlauncher/src/main/assets/components/jre-new
+          rm -rf app_pojavlauncher/src/main/assets/components/jre-21
           gradle assembleDebug
           mv app_pojavlauncher/build/outputs/apk/debug/app_pojavlauncher-debug.apk out/Supersonic-debug-noruntime.apk
 
