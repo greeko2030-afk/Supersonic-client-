@@ -3,11 +3,14 @@ package net.kdt.pojavlaunch.fragments;
 import static net.kdt.pojavlaunch.Tools.openPath;
 import static net.kdt.pojavlaunch.Tools.shareLog;
 
+import android.app.ActivityManager;
+import android.content.Context;
 import android.content.Intent;
 import android.os.Bundle;
 import android.view.View;
 import android.widget.Button;
 import android.widget.ImageButton;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
@@ -17,6 +20,7 @@ import androidx.fragment.app.Fragment;
 import com.kdt.mcgui.mcVersionSpinner;
 
 import net.kdt.pojavlaunch.CustomControlsActivity;
+import net.kdt.pojavlaunch.BuildConfig;
 import net.kdt.pojavlaunch.R;
 import net.kdt.pojavlaunch.Tools;
 import net.kdt.pojavlaunch.extra.ExtraConstants;
@@ -27,11 +31,16 @@ import net.kdt.pojavlaunch.value.launcherprofiles.LauncherProfiles;
 import net.kdt.pojavlaunch.value.launcherprofiles.MinecraftProfile;
 
 import java.io.File;
+import java.util.Locale;
 
 public class MainMenuFragment extends Fragment {
     public static final String TAG = "MainMenuFragment";
 
     private mcVersionSpinner mVersionSpinner;
+    private TextView mRamValue;
+    private TextView mRendererValue;
+    private TextView mDeviceRamValue;
+    private TextView mBuildText;
 
     public MainMenuFragment(){
         super(R.layout.fragment_launcher);
@@ -49,6 +58,12 @@ public class MainMenuFragment extends Fragment {
         ImageButton mEditProfileButton = view.findViewById(R.id.edit_profile_button);
         Button mPlayButton = view.findViewById(R.id.play_button);
         mVersionSpinner = view.findViewById(R.id.mc_version_spinner);
+
+        mRamValue = view.findViewById(R.id.home_stat_ram_value);
+        mRendererValue = view.findViewById(R.id.home_stat_renderer_value);
+        mDeviceRamValue = view.findViewById(R.id.home_stat_device_ram_value);
+        mBuildText = view.findViewById(R.id.home_version);
+        updateHomeStats();
 
         mNewsButton.setOnClickListener(v -> Tools.openURL(requireActivity(), Tools.URL_HOME));
         mDiscordButton.setOnClickListener(v -> Tools.openURL(requireActivity(), getString(R.string.discord_invite)));
@@ -94,6 +109,26 @@ public class MainMenuFragment extends Fragment {
     public void onResume() {
         super.onResume();
         mVersionSpinner.reloadProfiles();
+        updateHomeStats(); // settings may have changed while we were away
+    }
+
+    /** Fills the Home stats card with real values (nothing here is estimated or fake). */
+    private void updateHomeStats() {
+        if(mRamValue != null) {
+            mRamValue.setText(LauncherPreferences.PREF_RAM_ALLOCATION + " MB");
+        }
+        if(mRendererValue != null) {
+            mRendererValue.setText(LauncherPreferences.PREF_RENDERER);
+        }
+        if(mDeviceRamValue != null) {
+            ActivityManager activityManager = (ActivityManager) requireContext().getSystemService(Context.ACTIVITY_SERVICE);
+            ActivityManager.MemoryInfo memoryInfo = new ActivityManager.MemoryInfo();
+            if(activityManager != null) activityManager.getMemoryInfo(memoryInfo);
+            mDeviceRamValue.setText(String.format(Locale.US, "%.1f GB", memoryInfo.totalMem / (1024f * 1024f * 1024f)));
+        }
+        if(mBuildText != null) {
+            mBuildText.setText("Build " + BuildConfig.VERSION_NAME);
+        }
     }
 
     private void runInstallerWithConfirmation(boolean isCustomArgs) {
