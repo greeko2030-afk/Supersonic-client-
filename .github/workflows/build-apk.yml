@@ -3,11 +3,7 @@ name: Build Supersonic APK
 on:
   push:
     branches:
-      - supersonic-ui
-      - supersonic-phase1
-  pull_request:
-    branches:
-      - supersonic-ui
+      - '**'
   workflow_dispatch:
 
 jobs:
