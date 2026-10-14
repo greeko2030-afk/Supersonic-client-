@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="SS.Title" parent="android:Widget.TextView">
+        <item name="android:textColor">@color/primary_text</item>
+        <item name="android:textSize">22sp</item>
+        <item name="android:textStyle">bold|italic</item>
+    </style>
+    <style name="SS.Heading" parent="android:Widget.TextView">
+        <item name="android:textColor">@color/primary_text</item>
+        <item name="android:textSize">15sp</item>
+        <item name="android:textStyle">bold</item>
+    </style>
+    <style name="SS.Accent" parent="android:Widget.TextView">
+        <item name="android:textColor">@color/supersonic_accent_light</item>
+        <item name="android:textSize">13sp</item>
+    </style>
+    <style name="SS.Body" parent="android:Widget.TextView">
+        <item name="android:textColor">@color/secondary_text</item>
+        <item name="android:textSize">12sp</item>
+    </style>
+    <style name="SS.Section" parent="android:Widget.TextView">
+        <item name="android:textColor">@color/secondary_text</item>
+        <item name="android:textSize">12sp</item>
+        <item name="android:textStyle">bold</item>
+    </style>
+    <style name="SS.Button" parent="android:Widget.Button">
+        <item name="android:background">@drawable/bg_neon_button</item>
+        <item name="android:textColor">#FFFFFF</item>
+        <item name="android:textSize">13sp</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:textAllCaps">false</item>
+        <item name="android:minHeight">36dp</item>
+        <item name="android:minWidth">0dp</item>
+        <item name="android:paddingStart">14dp</item>
+        <item name="android:paddingEnd">14dp</item>
+        <item name="android:paddingTop">6dp</item>
+        <item name="android:paddingBottom">6dp</item>
+    </style>
+    <style name="SS.ButtonOutline" parent="SS.Button">
+        <item name="android:background">@drawable/bg_chip_idle</item>
+        <item name="android:textColor">@color/supersonic_accent_light</item>
+    </style>
+</resources>
