@@ -51,7 +51,20 @@ public class LauncherPreferenceVideoFragment extends LauncherPreferenceFragment 
         rendererListPreference.setEntries(renderersList.rendererDisplayNames);
         rendererListPreference.setEntryValues(renderersList.rendererIds.toArray(new String[0]));
 
+        setupPerformanceMode();
         computeVisibility();
+    }
+
+    /** Presets that change real settings (RAM, resolution, sustained performance, big cores). */
+    private void setupPerformanceMode() {
+        ListPreference mode = requirePreference("supersonic_performance_mode", ListPreference.class);
+        mode.setValue(String.valueOf(net.kdt.pojavlaunch.supersonic.PerformanceModes.current(requireContext())));
+        mode.setOnPreferenceChangeListener((preference, newValue) -> {
+            String summary = net.kdt.pojavlaunch.supersonic.PerformanceModes.apply(
+                    requireContext(), Integer.parseInt((String) newValue));
+            android.widget.Toast.makeText(requireContext(), summary, android.widget.Toast.LENGTH_LONG).show();
+            return true;
+        });
     }
 
     @Override
