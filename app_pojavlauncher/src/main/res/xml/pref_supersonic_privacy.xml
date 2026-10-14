@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
+    <PreferenceCategory android:title="@string/supersonic_pref_privacy_category">
+        <Preference
+            android:key="privacy_clear_cache"
+            android:title="@string/supersonic_pref_privacy_cache"
+            android:persistent="false" />
+        <Preference
+            android:key="privacy_delete_logs"
+            android:title="@string/supersonic_pref_privacy_logs"
+            android:persistent="false" />
+    </PreferenceCategory>
+</PreferenceScreen>
