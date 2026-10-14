@@ -48,11 +48,13 @@ public class ModrinthApi implements ModpackApi{
         facetString.append(String.format("[\"project_type:%s\"]", searchFilters.isModpack ? "modpack" : "mod"));
         if(searchFilters.mcVersion != null && !searchFilters.mcVersion.isEmpty())
             facetString.append(String.format(",[\"versions:%s\"]", searchFilters.mcVersion));
+        if(searchFilters.category != null && !searchFilters.category.isEmpty())
+            facetString.append(String.format(",[\"categories:%s\"]", searchFilters.category));
         facetString.append("]");
         params.put("facets", facetString.toString());
         params.put("query", searchFilters.name);
         params.put("limit", 50);
-        params.put("index", "relevance");
+        params.put("index", searchFilters.sortIndex == null ? "relevance" : searchFilters.sortIndex);
         if(modrinthSearchResult != null)
             params.put("offset", modrinthSearchResult.previousOffset);
 
@@ -70,7 +72,7 @@ public class ModrinthApi implements ModpackApi{
                     hit.get("project_id").getAsString(),
                     hit.get("title").getAsString(),
                     hit.get("description").getAsString(),
-                    hit.get("icon_url").getAsString()
+                    pickImage(hit)
             );
         }
         if(modrinthSearchResult == null) modrinthSearchResult = new ModrinthSearchResult();
@@ -78,6 +80,13 @@ public class ModrinthApi implements ModpackApi{
         modrinthSearchResult.results = items;
         modrinthSearchResult.totalResultCount = response.get("total_hits").getAsInt();
         return modrinthSearchResult;
+    }
+
+    /** Banner image if the project has one, otherwise its icon. */
+    private static String pickImage(JsonObject hit) {
+        if(hit.has("featured_gallery") && !hit.get("featured_gallery").isJsonNull())
+            return hit.get("featured_gallery").getAsString();
+        return hit.get("icon_url").getAsString();
     }
 
     @Override
