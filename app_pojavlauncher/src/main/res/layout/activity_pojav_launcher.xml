@@ -1,62 +1,111 @@
 <androidx.constraintlayout.widget.ConstraintLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
-    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@android:color/transparent">
+    android:background="@color/background_app">
 
-    <!-- Supersonic logo in the top bar -->
-    <ImageView
-        android:id="@+id/header_logo"
-        android:layout_width="@dimen/_44sdp"
-        android:layout_height="@dimen/_52sdp"
-        android:importantForAccessibility="no"
-        android:padding="@dimen/_6sdp"
-        android:scaleType="fitCenter"
-        android:src="@drawable/ic_supersonic_logo"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
+    <!-- Top bar: logo, title + version, account, settings -->
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/header_bar"
+        android:layout_width="match_parent"
+        android:layout_height="58dp"
+        android:background="@drawable/bg_header"
+        app:layout_constraintTop_toTopOf="parent">
 
-    <com.kdt.mcgui.mcAccountSpinner
-        android:id="@+id/account_spinner"
-        android:layout_width="0dp"
-        android:layout_height="@dimen/_52sdp"
+        <ImageView
+            android:id="@+id/header_logo"
+            android:layout_width="46dp"
+            android:layout_height="46dp"
+            android:layout_marginStart="8dp"
+            android:importantForAccessibility="no"
+            android:scaleType="fitCenter"
+            android:src="@drawable/ic_supersonic_logo"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
 
-        android:dropDownWidth="@dimen/_250sdp"
-        android:dropDownVerticalOffset="@dimen/_52sdp"
+        <LinearLayout
+            android:id="@+id/header_text"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="6dp"
+            android:orientation="vertical"
+            app:layout_constrainedWidth="true"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toStartOf="@id/account_spinner"
+            app:layout_constraintHorizontal_bias="0"
+            app:layout_constraintStart_toEndOf="@id/header_logo"
+            app:layout_constraintTop_toTopOf="parent">
 
-        app:layout_constraintEnd_toStartOf="@id/setting_button"
-        app:layout_constraintStart_toEndOf="@id/header_logo"
-        app:layout_constraintTop_toTopOf="parent" />
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:maxLines="1"
+                android:text="@string/supersonic_header_title"
+                android:textColor="@color/primary_text"
+                android:textSize="17sp"
+                android:textStyle="bold|italic" />
 
-    <ImageButton
-        android:id="@+id/setting_button"
-        android:layout_width="@dimen/_52sdp"
-        android:layout_height="@dimen/_52sdp"
-        android:background="?attr/selectableItemBackground"
-        android:contentDescription="@string/supersonic_nav_settings"
-        android:paddingVertical="@dimen/_8sdp"
-        android:scaleType="fitCenter"
-        android:src="@drawable/ic_menu_settings"
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal">
 
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:letterSpacing="0.3"
+                    android:text="@string/supersonic_header_subtitle"
+                    android:textColor="@color/secondary_text"
+                    android:textSize="9sp" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="8dp"
+                    android:text="@string/supersonic_version_name"
+                    android:textColor="@color/supersonic_accent_light"
+                    android:textSize="10sp" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <com.kdt.mcgui.mcAccountSpinner
+            android:id="@+id/account_spinner"
+            android:layout_width="116dp"
+            android:layout_height="0dp"
+            android:dropDownVerticalOffset="58dp"
+            android:dropDownWidth="@dimen/_250sdp"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toStartOf="@id/setting_button"
+            app:layout_constraintTop_toTopOf="parent" />
+
+        <ImageButton
+            android:id="@+id/setting_button"
+            android:layout_width="48dp"
+            android:layout_height="0dp"
+            android:background="?attr/selectableItemBackground"
+            android:contentDescription="@string/supersonic_nav_settings"
+            android:padding="12dp"
+            android:scaleType="fitCenter"
+            android:src="@drawable/ic_menu_settings"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
+    </androidx.constraintlayout.widget.ConstraintLayout>
 
     <!-- Holding most of the dynamic content -->
     <androidx.fragment.app.FragmentContainerView
         android:id="@+id/container_fragment"
-
         android:layout_width="match_parent"
         android:layout_height="0dp"
         app:layout_constraintBottom_toTopOf="@+id/progress_layout"
-        app:layout_constraintTop_toBottomOf="@+id/account_spinner" />
+        app:layout_constraintTop_toBottomOf="@+id/header_bar" />
 
     <com.kdt.mcgui.ProgressLayout
         android:id="@+id/progress_layout"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-
         app:layout_constraintBottom_toTopOf="@+id/supersonic_nav_bar" />
 
     <!-- Bottom navigation: Home / Modpacks / Addons / Servers / Settings -->
