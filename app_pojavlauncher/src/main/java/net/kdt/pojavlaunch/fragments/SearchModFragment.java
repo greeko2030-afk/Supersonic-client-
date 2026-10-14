@@ -8,6 +8,7 @@ import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ImageButton;
+import android.widget.LinearLayout;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 
@@ -16,7 +17,7 @@ import androidx.annotation.Nullable;
 import androidx.appcompat.app.AlertDialog;
 import androidx.core.math.MathUtils;
 import androidx.fragment.app.Fragment;
-import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.GridLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import net.kdt.pojavlaunch.R;
@@ -25,6 +26,7 @@ import net.kdt.pojavlaunch.modloaders.modpacks.api.CommonApi;
 import net.kdt.pojavlaunch.modloaders.modpacks.api.ModpackApi;
 import net.kdt.pojavlaunch.modloaders.modpacks.models.SearchFilters;
 import net.kdt.pojavlaunch.profiles.VersionSelectorDialog;
+import net.kdt.pojavlaunch.supersonic.SupersonicUi;
 import net.kdt.pojavlaunch.progresskeeper.ProgressKeeper;
 
 public class SearchModFragment extends Fragment implements ModItemAdapter.SearchResultCallback {
@@ -49,6 +51,13 @@ public class SearchModFragment extends Fragment implements ModItemAdapter.Search
     private ColorStateList mDefaultTextColor;
 
     private ModpackApi modpackApi;
+
+    // Supersonic category chips: label, Modrinth category, Modrinth sort order, extra search text
+    private static final String[] CHIP_LABELS = {"All", "Popular", "New", "Adventure", "Tech", "PvP", "Survival"};
+    private static final String[] CHIP_CATEGORY = {null, null, null, "adventure", "technology", "combat", null};
+    private static final String[] CHIP_SORT = {"relevance", "downloads", "newest", "relevance", "relevance", "relevance", "relevance"};
+    private static final String[] CHIP_TEXT = {"", "", "", "", "", "", "survival"};
+    private int mChip = 0;
 
     private final SearchFilters mSearchFilters;
 
@@ -80,7 +89,16 @@ public class SearchModFragment extends Fragment implements ModItemAdapter.Search
 
         mDefaultTextColor = mStatusTextView.getTextColors();
 
-        mRecyclerview.setLayoutManager(new LinearLayoutManager(getContext()));
+        // Two cards per row; the "loading more" footer spans both columns
+        GridLayoutManager gridLayoutManager = new GridLayoutManager(getContext(), 2);
+        gridLayoutManager.setSpanSizeLookup(new GridLayoutManager.SpanSizeLookup() {
+            @Override
+            public int getSpanSize(int position) {
+                // Real items are mod items; the loading footer is the only item past the end of the data
+                return mModItemAdapter.isLoadingItem(position) ? 2 : 1;
+            }
+        });
+        mRecyclerview.setLayoutManager(gridLayoutManager);
         mRecyclerview.setAdapter(mModItemAdapter);
 
         mRecyclerview.addOnScrollListener(mOverlayPositionListener);
@@ -99,6 +117,12 @@ public class SearchModFragment extends Fragment implements ModItemAdapter.Search
                    mRecyclerview.getPaddingBottom());
         });
         mFilterButton.setOnClickListener(v -> displayFilterDialog());
+
+        LinearLayout chips = view.findViewById(R.id.search_mod_chips);
+        SupersonicUi.buildChips(chips, CHIP_LABELS, mChip, index -> {
+            mChip = index;
+            searchMods(mSearchEditText.getText().toString());
+        });
 
         searchMods(null);
     }
@@ -134,7 +158,12 @@ public class SearchModFragment extends Fragment implements ModItemAdapter.Search
 
     private void searchMods(String name) {
         mSearchProgressBar.setVisibility(View.VISIBLE);
-        mSearchFilters.name = name == null ? "" : name;
+        String typed = name == null ? "" : name.trim();
+        // Chip text (for example "survival") is added to what the user typed
+        String chipText = CHIP_TEXT[mChip];
+        mSearchFilters.name = typed.isEmpty() ? chipText : (chipText.isEmpty() ? typed : typed + " " + chipText);
+        mSearchFilters.category = CHIP_CATEGORY[mChip];
+        mSearchFilters.sortIndex = (typed.isEmpty() || mChip == 1 || mChip == 2) ? CHIP_SORT[mChip] : "relevance";
         mModItemAdapter.performSearchQuery(mSearchFilters);
     }
 
