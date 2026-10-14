@@ -9,5 +9,9 @@ public class SearchFilters {
     public boolean isModpack;
     public String name;
     @Nullable public String mcVersion;
+    /** Modrinth category such as "adventure" or "technology" (null = any) */
+    @Nullable public String category;
+    /** Modrinth sort index: relevance, downloads, newest (null = relevance) */
+    @Nullable public String sortIndex;
 
 }
