@@ -29,7 +29,6 @@ import net.kdt.pojavlaunch.contracts.OpenDocumentWithExtension;
 import net.kdt.pojavlaunch.extra.ExtraConstants;
 import net.kdt.pojavlaunch.extra.ExtraCore;
 import net.kdt.pojavlaunch.extra.ExtraListener;
-import net.kdt.pojavlaunch.fragments.ComingSoonFragment;
 import net.kdt.pojavlaunch.fragments.MainMenuFragment;
 import net.kdt.pojavlaunch.fragments.MicrosoftLoginFragment;
 import net.kdt.pojavlaunch.fragments.SearchModFragment;
@@ -40,6 +39,9 @@ import net.kdt.pojavlaunch.modloaders.modpacks.ModloaderInstallTracker;
 import net.kdt.pojavlaunch.modloaders.modpacks.imagecache.IconCacheJanitor;
 import net.kdt.pojavlaunch.prefs.LauncherPreferences;
 import net.kdt.pojavlaunch.prefs.screens.LauncherPreferenceFragment;
+import net.kdt.pojavlaunch.supersonic.AddonsFragment;
+import net.kdt.pojavlaunch.supersonic.ServersFragment;
+import net.kdt.pojavlaunch.supersonic.SupersonicSettingsFragment;
 import net.kdt.pojavlaunch.progresskeeper.ProgressKeeper;
 import net.kdt.pojavlaunch.progresskeeper.TaskCountListener;
 import net.kdt.pojavlaunch.services.ProgressServiceKeeper;
@@ -306,16 +308,15 @@ public class LauncherActivity extends BaseActivity {
     private int tabForFragment(Fragment fragment) {
         if(fragment instanceof MainMenuFragment) return SupersonicNavBar.TAB_HOME;
         if(fragment instanceof SearchModFragment) return SupersonicNavBar.TAB_MODPACKS;
+        if(fragment instanceof AddonsFragment) return SupersonicNavBar.TAB_ADDONS;
+        if(fragment instanceof ServersFragment) return SupersonicNavBar.TAB_SERVERS;
+        if(fragment instanceof SupersonicSettingsFragment) return SupersonicNavBar.TAB_SETTINGS;
         if(fragment instanceof LauncherPreferenceFragment) return SupersonicNavBar.TAB_SETTINGS;
-        if(fragment instanceof ComingSoonFragment) {
-            Bundle arguments = fragment.getArguments();
-            return arguments != null ? arguments.getInt(ComingSoonFragment.ARG_TAB, -1) : -1;
-        }
         return -1;
     }
 
     /** Opens one of the five navigation tabs, always on top of the root (Home) fragment. */
-    private void openTab(int tab) {
+    public void openTab(int tab) {
         Fragment current = getSupportFragmentManager().findFragmentById(mFragmentView.getId());
         if(current != null && tabForFragment(current) == tab) return; // already showing it
 
@@ -329,19 +330,13 @@ public class LauncherActivity extends BaseActivity {
                 Tools.swapFragment(this, SearchModFragment.class, SearchModFragment.TAG, null);
                 break;
             case SupersonicNavBar.TAB_ADDONS:
-                Tools.swapFragment(this, ComingSoonFragment.class, ComingSoonFragment.TAG,
-                        ComingSoonFragment.args(SupersonicNavBar.TAB_ADDONS,
-                                R.string.supersonic_nav_addons, R.drawable.ic_nav_addons,
-                                R.string.supersonic_coming_soon_addons));
+                Tools.swapFragment(this, AddonsFragment.class, AddonsFragment.TAG, null);
                 break;
             case SupersonicNavBar.TAB_SERVERS:
-                Tools.swapFragment(this, ComingSoonFragment.class, ComingSoonFragment.TAG,
-                        ComingSoonFragment.args(SupersonicNavBar.TAB_SERVERS,
-                                R.string.supersonic_nav_servers, R.drawable.ic_nav_servers,
-                                R.string.supersonic_coming_soon_servers));
+                Tools.swapFragment(this, ServersFragment.class, ServersFragment.TAG, null);
                 break;
             case SupersonicNavBar.TAB_SETTINGS:
-                Tools.swapFragment(this, LauncherPreferenceFragment.class, SETTING_FRAGMENT_TAG, null);
+                Tools.swapFragment(this, SupersonicSettingsFragment.class, SETTING_FRAGMENT_TAG, null);
                 break;
         }
     }

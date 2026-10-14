@@ -101,7 +101,7 @@ import java.util.Map;
 public final class Tools {
     public  static final float BYTE_TO_MB = 1024 * 1024;
     public static final Handler MAIN_HANDLER = new Handler(Looper.getMainLooper());
-    public static String APP_NAME = "PojavLauncher";
+    public static String APP_NAME = "SupersonicClient";
 
     public static final Gson GLOBAL_GSON = new GsonBuilder().setPrettyPrinting().create();
 
@@ -116,7 +116,7 @@ public final class Tools {
 
     // New since 3.3.1
     public static String DIR_ACCOUNT_NEW;
-    public static String DIR_GAME_HOME = Environment.getExternalStorageDirectory().getAbsolutePath() + "/games/PojavLauncher";
+    public static String DIR_GAME_HOME = Environment.getExternalStorageDirectory().getAbsolutePath() + "/supersonic";
     public static String DIR_GAME_NEW;
     public static String GAME_PROFILES_FILE;
 
@@ -137,11 +137,19 @@ public final class Tools {
 
 
     private static File getPojavStorageRoot(Context ctx) {
+        // Supersonic: the game lives in <storage>/supersonic/minecraft
+        // (Android 10+: Android/data/<package>/files/supersonic/minecraft, no extra permission needed)
+        File root;
         if(SDK_INT >= 29) {
-            return ctx.getExternalFilesDir(null);
+            File base = ctx.getExternalFilesDir(null);
+            if(base == null) return null;
+            root = new File(base, "supersonic");
         }else{
-            return new File(Environment.getExternalStorageDirectory(),"games/PojavLauncher");
+            root = new File(Environment.getExternalStorageDirectory(), "supersonic");
         }
+        //noinspection ResultOfMethodCallIgnored
+        root.mkdirs();
+        return root;
     }
 
     /**
@@ -193,7 +201,7 @@ public final class Tools {
     public static void initStorageConstants(Context ctx){
         initEarlyConstants(ctx);
         DIR_GAME_HOME = getPojavStorageRoot(ctx).getAbsolutePath();
-        DIR_GAME_NEW = DIR_GAME_HOME + "/.minecraft";
+        DIR_GAME_NEW = DIR_GAME_HOME + "/minecraft";
         DIR_HOME_VERSION = DIR_GAME_NEW + "/versions";
         DIR_HOME_LIBRARY = DIR_GAME_NEW + "/libraries";
         DIR_HOME_CRASH = DIR_GAME_NEW + "/crash-reports";
@@ -515,7 +523,49 @@ public final class Tools {
 
         if(profile.isDemo()) mcArguments += " --demo";
 
+        String pendingArgs = consumePendingGameArgs();
+        if(pendingArgs != null) mcArguments += " " + pendingArgs;
+
         return JSONUtils.insertJSONValueList(splitAndFilterEmpty(mcArguments), varArgMap);
+    }
+
+    private static File getPendingGameArgsFile() {
+        return new File(DIR_GAME_HOME, ".supersonic_pending_args");
+    }
+
+    /** Called by the launcher (":launcher" process) to add extra game arguments to the next launch only. */
+    public static void setPendingGameArgs(String args) {
+        try {
+            if(args == null) {
+                //noinspection ResultOfMethodCallIgnored
+                getPendingGameArgsFile().delete();
+            } else {
+                write(getPendingGameArgsFile().getAbsolutePath(), args);
+            }
+        } catch (IOException e) {
+            Log.w(APP_NAME, "Could not store pending game arguments", e);
+        }
+    }
+
+    /** Called when building the game arguments (":game" process). Reads and deletes the file. */
+    private static String consumePendingGameArgs() {
+        File file = getPendingGameArgsFile();
+        if(!file.isFile()) return null;
+        // Ignore leftovers from a launch that never happened (older than 3 minutes)
+        if(System.currentTimeMillis() - file.lastModified() > 3 * 60 * 1000L) {
+            //noinspection ResultOfMethodCallIgnored
+            file.delete();
+            return null;
+        }
+        try {
+            String args = read(file.getAbsolutePath()).trim();
+            return args.isEmpty() ? null : args;
+        } catch (IOException e) {
+            return null;
+        } finally {
+            //noinspection ResultOfMethodCallIgnored
+            file.delete();
+        }
     }
 
     public static String fromStringArray(String[] strArr) {
@@ -1419,9 +1469,9 @@ public final class Tools {
 
     public static void switchDemo(boolean isDemo){
         if(isDemo) {
-            DIR_GAME_NEW = DIR_DATA + "/demo/.minecraft";
+            DIR_GAME_NEW = DIR_DATA + "/demo/minecraft";
         } else {
-            DIR_GAME_NEW = DIR_GAME_HOME + "/.minecraft";
+            DIR_GAME_NEW = DIR_GAME_HOME + "/minecraft";
         }
         DIR_HOME_VERSION = DIR_GAME_NEW + "/versions";
         DIR_HOME_LIBRARY = DIR_GAME_NEW + "/libraries";
