@@ -126,6 +126,11 @@ public class ModItemAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
                 .startOnExecutor(PojavApplication.sExecutorService);
     }
 
+    /** True for the "loading more results" footer (it must span the whole row in a grid). */
+    public boolean isLoadingItem(int position) {
+        return getItemViewType(position) == VIEW_TYPE_LOADING;
+    }
+
     @Override
     public int getItemViewType(int position) {
         if(position < mModItems.length) return VIEW_TYPE_MOD_ITEM;
