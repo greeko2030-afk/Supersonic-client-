@@ -54,8 +54,6 @@ public class MinecraftDownloader {
 
     private static final ThreadLocal<byte[]> sThreadLocalDownloadBuffer = new ThreadLocal<>();
 
-    private boolean isLocalProfile = false;
-
     /**
      * Start the game version download process on the global executor service.
      * @param activity Activity, used for automatic installation of JRE 17 if needed
@@ -66,12 +64,10 @@ public class MinecraftDownloader {
     public void start(@Nullable Activity activity, @Nullable JMinecraftVersionList.Version version,
                       @NonNull String realVersion, // this was there for a reason
                       @NonNull AsyncMinecraftDownloader.DoneListener listener) {
+        // Local (offline) accounts download the real game, exactly like Microsoft accounts.
+        // Only real "Demo." accounts use the separate demo game folder.
         if(activity != null){
-            isLocalProfile = Tools.isLocalProfile(activity);
             Tools.switchDemo(Tools.isDemoProfile(activity));
-        } else {
-            isLocalProfile = true;
-            Tools.switchDemo(true);
         }
 
         sExecutorService.execute(() -> {
@@ -516,10 +512,6 @@ public class MinecraftDownloader {
         }
         
         private void downloadFile() throws Exception {
-            if(isLocalProfile){
-                throw new RuntimeException("Download failed. Please make sure you are logged in with a Microsoft Account.");
-            }
-
             try {
                 DownloadUtils.ensureSha1(mTargetPath, mTargetSha1, () -> {
                     DownloadMirror.downloadFileMirrored(mDownloadClass, mTargetUrl, mTargetPath,
