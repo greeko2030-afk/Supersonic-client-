@@ -32,10 +32,14 @@
 
             <TextView
                 style="@style/SS.Title"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
                 android:text="@string/supersonic_settings_title" />
 
             <TextView
                 style="@style/SS.Accent"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
                 android:text="@string/supersonic_settings_subtitle" />
         </LinearLayout>
     </LinearLayout>

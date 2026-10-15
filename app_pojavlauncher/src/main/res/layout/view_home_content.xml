@@ -28,10 +28,14 @@
 
                 <TextView
                     style="@style/SS.Title"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
                     android:text="@string/supersonic_home_hero_title" />
 
                 <TextView
                     style="@style/SS.Accent"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
                     android:layout_marginTop="2dp"
                     android:text="@string/supersonic_tagline" />
             </LinearLayout>
@@ -79,6 +83,8 @@
         <TextView
             android:id="@+id/home_perf_chip"
             style="@style/SS.Body"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
             android:layout_marginTop="8dp"
             android:textColor="@color/supersonic_accent_light" />
 
@@ -116,11 +122,15 @@
 
             <TextView
                 style="@style/SS.Body"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
                 android:text="@string/supersonic_home_ram_usage" />
 
             <TextView
                 android:id="@+id/home_stat_ram_value"
                 style="@style/SS.Heading"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
                 android:layout_marginTop="2dp" />
 
             <ProgressBar
@@ -143,11 +153,15 @@
 
             <TextView
                 style="@style/SS.Body"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
                 android:text="@string/supersonic_home_game_ram" />
 
             <TextView
                 android:id="@+id/home_stat_game_ram_value"
                 style="@style/SS.Heading"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
                 android:layout_marginTop="2dp"
                 android:textColor="@color/supersonic_accent_light" />
         </LinearLayout>
@@ -160,11 +174,15 @@
 
             <TextView
                 style="@style/SS.Body"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
                 android:text="@string/supersonic_home_ping" />
 
             <TextView
                 android:id="@+id/home_stat_ping_value"
                 style="@style/SS.Heading"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
                 android:layout_marginTop="2dp"
                 android:textColor="@color/supersonic_accent_light" />
         </LinearLayout>
@@ -201,11 +219,15 @@
 
                 <TextView
                     style="@style/SS.Heading"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
                     android:text="@string/supersonic_home_quick_opt" />
 
                 <TextView
                     android:id="@+id/home_quick_opt_status"
                     style="@style/SS.Body"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
                     android:text="@string/supersonic_home_quick_opt_desc" />
             </LinearLayout>
 
@@ -257,10 +279,14 @@
 
                 <TextView
                     style="@style/SS.Heading"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
                     android:text="@string/supersonic_home_modpacks" />
 
                 <TextView
                     style="@style/SS.Body"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
                     android:text="@string/supersonic_home_modpacks_desc" />
             </LinearLayout>
 
@@ -275,6 +301,8 @@
         <TextView
             android:id="@+id/home_modpacks_status"
             style="@style/SS.Body"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
             android:layout_marginTop="8dp"
             android:visibility="gone" />
 
@@ -314,10 +342,14 @@
 
             <TextView
                 style="@style/SS.Heading"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
                 android:text="@string/supersonic_home_agent_title" />
 
             <TextView
                 style="@style/SS.Body"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
                 android:text="@string/supersonic_home_agent_desc" />
         </LinearLayout>
 
@@ -331,6 +363,8 @@
 
     <TextView
         style="@style/SS.Section"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
         android:layout_marginStart="4dp"
         android:layout_marginTop="16dp"
         android:layout_marginBottom="6dp"
@@ -363,6 +397,8 @@
 
             <TextView
                 style="@style/SS.Heading"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
                 android:layout_marginTop="6dp"
                 android:text="@string/supersonic_instances"
                 android:textSize="12sp" />
@@ -390,6 +426,8 @@
 
             <TextView
                 style="@style/SS.Heading"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
                 android:layout_marginTop="6dp"
                 android:text="@string/supersonic_resource_packs"
                 android:textSize="12sp" />
@@ -416,6 +454,8 @@
 
             <TextView
                 style="@style/SS.Heading"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
                 android:layout_marginTop="6dp"
                 android:text="@string/supersonic_worlds"
                 android:textSize="12sp" />
@@ -424,6 +464,8 @@
 
     <TextView
         style="@style/SS.Section"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
         android:layout_marginStart="4dp"
         android:layout_marginTop="16dp"
         android:layout_marginBottom="6dp"

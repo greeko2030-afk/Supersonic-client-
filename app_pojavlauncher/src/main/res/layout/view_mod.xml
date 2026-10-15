@@ -31,6 +31,8 @@
     <TextView
         android:id="@+id/mod_title_textview"
         style="@style/SS.Heading"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
         android:layout_marginStart="6dp"
         android:layout_marginTop="6dp"
         android:layout_marginEnd="6dp"
@@ -40,6 +42,8 @@
     <TextView
         android:id="@+id/mod_body_textview"
         style="@style/SS.Body"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
         android:layout_marginStart="6dp"
         android:layout_marginTop="2dp"
         android:layout_marginEnd="6dp"
