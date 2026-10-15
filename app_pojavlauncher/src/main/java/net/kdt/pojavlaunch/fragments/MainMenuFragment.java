@@ -336,8 +336,8 @@ public class MainMenuFragment extends Fragment {
     }
 
     private void runInstallerWithConfirmation(boolean isCustomArgs) {
-        // avoid using custom installers to install a version
-        if(Tools.isLocalProfile(requireContext()) || Tools.isDemoProfile(requireContext())){
+        // Local (offline) accounts may run installers. Only demo accounts are restricted.
+        if(Tools.isDemoProfile(requireContext())){
             Toast.makeText(requireContext(), R.string.toast_not_available_demo, Toast.LENGTH_LONG).show();
             return;
         }
