@@ -28,7 +28,7 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginTop="4dp"
-        android:text="@string/supersonic_coming_soon_title"
+        android:text="Coming soon"
         android:textColor="@color/supersonic_accent_light"
         android:textSize="14sp" />
 
