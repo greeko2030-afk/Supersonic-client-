@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Branding (used by AndroidManifest.xml, no translation needed) -->
+    <string name="supersonic_app_name">Supersonic Client</string>
+    <string name="supersonic_short_name">Supersonic</string>
+    <string name="supersonic_tagline">The next generation Minecraft launcher</string>
+
+    <!-- Navigation -->
+    <string name="supersonic_nav_home">Home</string>
+    <string name="supersonic_nav_modpacks">Modpacks</string>
+    <string name="supersonic_nav_addons">Addons</string>
+    <string name="supersonic_nav_servers">Servers</string>
+    <string name="supersonic_nav_settings">Settings</string>
+
+    <!-- Placeholder screens -->
+    <string name="supersonic_coming_soon_title">Coming soon</string>
+
+    <!-- Home -->
+    <string name="supersonic_home_quick_actions">QUICK ACTIONS</string>
+    <string name="supersonic_home_stat_ram">RAM allocated</string>
+    <string name="supersonic_home_stat_renderer">Renderer</string>
+    <string name="supersonic_home_stat_device_ram">Device RAM</string>
+
+    <!-- Settings -->
+    <string name="supersonic_pref_system_overview">System overview</string>
+    <string name="supersonic_pref_system_overview_title">This device</string>
+    <string name="supersonic_pref_category_general">General</string>
+    <string name="supersonic_pref_category_about">About</string>
+    <string name="supersonic_pref_performance_title">Performance</string>
+    <string name="supersonic_pref_performance_desc">Renderer, resolution scale, VSync and display options</string>
+    <string name="supersonic_pref_minecraft_title">Minecraft &amp; Java</string>
+    <string name="supersonic_pref_minecraft_desc">RAM allocation, Java runtime, JVM arguments and sandbox</string>
+    <string name="supersonic_pref_launcher_title">Downloads &amp; Launcher</string>
+    <string name="supersonic_pref_launcher_desc">Download source, file verification and library checks</string>
+    <string name="supersonic_pref_advanced_title">Advanced</string>
+    <string name="supersonic_pref_advanced_desc">Experimental options for testing</string>
+    <string name="supersonic_pref_about_title">Supersonic Client</string>
+    <string name="supersonic_pref_about_desc">The next generation Minecraft launcher.</string>
+
+    <!-- Header / Home -->
+    <string name="supersonic_version_name">v2.5.0</string>
+    <string name="supersonic_header_title">SUPERSONIC</string>
+    <string name="supersonic_header_subtitle">CLIENT</string>
+    <string name="supersonic_home_hero_title">SUPERSONIC CLIENT</string>
+    <string name="supersonic_home_ram_usage">RAM Usage</string>
+    <string name="supersonic_home_game_ram">Game RAM</string>
+    <string name="supersonic_home_ping">Ping</string>
+    <string name="supersonic_home_quick_opt">QUICK OPTIMIZATION</string>
+    <string name="supersonic_home_quick_opt_desc">Essential mods for better performance</string>
+    <string name="supersonic_home_manage">Manage</string>
+    <string name="supersonic_home_modpacks">MODPACKS</string>
+    <string name="supersonic_home_modpacks_desc">Choose. Download. Play.</string>
+    <string name="supersonic_home_browse_all">Browse All</string>
+    <string name="supersonic_home_library">LIBRARY</string>
+    <string name="supersonic_home_tools">TOOLS</string>
+    <string name="supersonic_home_agent_title">Ask Supersonic Agent</string>
+    <string name="supersonic_home_agent_desc">Scan your setup, fix issues and clean up.</string>
+    <string name="supersonic_home_scan_fix">Scan &amp; Fix</string>
+    <string name="supersonic_install">Install</string>
+    <string name="supersonic_installed">Installed</string>
+    <string name="supersonic_instances">Instances</string>
+    <string name="supersonic_resource_packs">Resource Packs</string>
+    <string name="supersonic_worlds">Worlds</string>
+    <string name="supersonic_agent">Agent</string>
+    <string name="supersonic_open_game_folder">Open game folder</string>
+
+    <!-- Common list screens -->
+    <string name="supersonic_search_hint">Search…</string>
+    <string name="supersonic_addons_title">ADDONS</string>
+    <string name="supersonic_addons_subtitle">Customize your Minecraft experience</string>
+    <string name="supersonic_servers_title">SERVERS</string>
+    <string name="supersonic_servers_subtitle">Save, ping and join servers</string>
+    <string name="supersonic_instances_title">INSTANCES</string>
+    <string name="supersonic_instances_subtitle">Your game profiles</string>
+    <string name="supersonic_worlds_title">WORLDS</string>
+    <string name="supersonic_worlds_subtitle">Back up, import and delete worlds</string>
+    <string name="supersonic_resource_packs_title">RESOURCE PACKS</string>
+    <string name="supersonic_resource_packs_subtitle">Manage packs of the selected instance</string>
+    <string name="supersonic_agent_title">SUPERSONIC AGENT</string>
+    <string name="supersonic_agent_subtitle">Scan, fix and optimize</string>
+    <string name="supersonic_settings_title">SETTINGS</string>
+    <string name="supersonic_settings_subtitle">Customize your experience.</string>
+    <string name="supersonic_modpacks_title">MODPACKS</string>
+    <string name="supersonic_modpacks_subtitle">Choose. Download. Play.</string>
+    <string name="supersonic_pref_performance_mode_title">Performance mode</string>
+    <string name="supersonic_pref_performance_mode_desc">Battery saver, Balanced or Ultra. Changes game RAM, resolution scale and boost options.</string>
+    <string name="supersonic_pref_privacy_cache">Clear launcher cache</string>
+    <string name="supersonic_pref_privacy_logs">Delete logs and crash reports</string>
+    <string name="supersonic_pref_privacy_category">Privacy and storage</string>
+</resources>
