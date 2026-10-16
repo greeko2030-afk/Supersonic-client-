@@ -374,6 +374,12 @@ public class JREUtils {
                 "-Dnet.minecraft.clientmodname=" + Tools.APP_NAME,
                 "-Dfml.earlyprogresswindow=false", //Forge 1.14+ workaround
                 "-Dloader.disable_forked_guis=true",
+                // Sodium 0.5.x refuses to start unless LWJGL is exactly the version that Minecraft ships with
+                // ("The game failed to start because the currently active LWJGL version is not compatible").
+                // This launcher bundles its own LWJGL (3.3.3-snapshot), so that check always fails here.
+                // Disabling it is the workaround documented by the Sodium authors. A user can still
+                // override it by putting their own -Dsodium.checks.issue2561=... in the JVM arguments.
+                "-Dsodium.checks.issue2561=false",
                 "-Djdk.lang.Process.launchMechanism=FORK" // Default is POSIX_SPAWN which requires starting jspawnhelper, which doesn't work on Android
         ));
         if(LauncherPreferences.PREF_ARC_CAPES) {
