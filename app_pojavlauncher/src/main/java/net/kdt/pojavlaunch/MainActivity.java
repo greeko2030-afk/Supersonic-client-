@@ -70,6 +70,7 @@ import net.kdt.pojavlaunch.value.launcherprofiles.MinecraftProfile;
 import org.lwjgl.glfw.CallbackBridge;
 
 import java.io.File;
+import java.util.List;
 import java.io.IOException;
 
 public class MainActivity extends BaseActivity implements ControlButtonMenuListener, EditorExitable, ServiceConnection {
@@ -348,6 +349,40 @@ public class MainActivity extends BaseActivity implements ControlButtonMenuListe
         }
     }
 
+    /**
+     * Sodium cannot run on the gl4es renderer (OpenGL 2.1): its chunk renderer needs OpenGL 3.2 or newer,
+     * so the game crashes natively as soon as a world is loaded. When the instance has Sodium
+     * and the renderer is gl4es, LTW (or Zink when LTW is not available) is used for this launch.
+     * The renderer that the user selected in the settings is not changed.
+     */
+    private void useSodiumCompatibleRenderer() {
+        if(!"opengles2".equals(Tools.LOCAL_RENDERER)) return;
+        if(!hasSodiumMod(Tools.getGameDirPath(minecraftProfile))) return;
+
+        List<String> compatible = Tools.getCompatibleRenderers(this).rendererIds;
+        String replacement = null;
+        if(compatible.contains("opengles3_ltw")) replacement = "opengles3_ltw";
+        else if(compatible.contains("vulkan_zink")) replacement = "vulkan_zink";
+
+        if(replacement == null) {
+            Logger.appendToLog("Warning: Sodium needs the LTW or Zink renderer, but this device has neither. The game will probably crash.");
+            return;
+        }
+        Logger.appendToLog("Sodium found: using the " + replacement + " renderer instead of gl4es (OpenGL 2.1)");
+        Tools.LOCAL_RENDERER = replacement;
+    }
+
+    /** Checks if the mods folder has an enabled Sodium (or a Sodium based mod). */
+    private static boolean hasSodiumMod(File gameDir) {
+        File[] mods = new File(gameDir, "mods").listFiles(file -> file.isFile() && file.getName().endsWith(".jar"));
+        if(mods == null) return false;
+        for(File mod : mods) {
+            String name = mod.getName().toLowerCase();
+            if(name.contains("sodium") || name.contains("embeddium") || name.contains("rubidium")) return true;
+        }
+        return false;
+    }
+
     private void runCraft(String versionId, JMinecraftVersionList.Version version) throws Throwable {
         if(Tools.LOCAL_RENDERER == null) {
             Tools.LOCAL_RENDERER = LauncherPreferences.PREF_RENDERER;
@@ -359,6 +394,7 @@ public class MainActivity extends BaseActivity implements ControlButtonMenuListe
             Tools.LOCAL_RENDERER = firstCompatibleRenderer;
             Tools.releaseRenderersCache();
         }
+        useSodiumCompatibleRenderer();
         MinecraftAccount minecraftAccount = PojavProfile.getCurrentProfileContent(this, null);
         Logger.appendToLog("--------- Starting game with Launcher Debug!");
         Tools.printLauncherInfo(versionId, Tools.isValidString(minecraftProfile.javaArgs) ? minecraftProfile.javaArgs : LauncherPreferences.PREF_CUSTOM_JAVA_ARGS);
