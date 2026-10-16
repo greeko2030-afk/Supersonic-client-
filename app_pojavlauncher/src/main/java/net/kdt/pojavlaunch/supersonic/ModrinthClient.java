@@ -35,6 +35,16 @@ public final class ModrinthClient {
     private static final String BASE = "https://api.modrinth.com/v2";
     private static final String USER_AGENT = "SupersonicClient/2.5.0 (Android Minecraft launcher)";
 
+    /** Modrinth project id of Sodium (https://modrinth.com/mod/sodium). */
+    private static final String SODIUM_ID = "AANobbMI";
+    /**
+     * Modrinth project id of Podium (https://modrinth.com/mod/podium, MIT license).
+     * Sodium 0.5.13+ deliberately stops the game when it detects a PojavLauncher based launcher.
+     * Podium only removes that check, so it is installed together with Sodium.
+     * It does not make Sodium work with every renderer: use LTW or MobileGlues.
+     */
+    private static final String PODIUM_ID = "fW8woQj4";
+
     private ModrinthClient() {}
 
     public static class Hit {
@@ -246,7 +256,10 @@ public final class ModrinthClient {
             throw new IOException("No version of this project is available for Minecraft " + profile.mcVersion
                     + (shader ? "" : " (" + profile.loader + ")"));
         }
-        if (version.projectId != null && installedProjectIds.contains(version.projectId)) return 0;
+        if (version.projectId != null && installedProjectIds.contains(version.projectId)) {
+            // Already installed. Sodium still needs Podium, so make sure that it is there
+            return installPodiumForSodium(version.projectId, shader, profile, installedProjectIds, visited, depth);
+        }
 
         int downloaded = 0;
         if (!shader) {
@@ -270,7 +283,25 @@ public final class ModrinthClient {
             throw new IOException("Downloaded file is corrupted, please try again");
         }
         if (version.projectId != null) installedProjectIds.add(version.projectId);
-        return downloaded + 1;
+        downloaded++;
+        downloaded += installPodiumForSodium(version.projectId, shader, profile, installedProjectIds, visited, depth);
+        return downloaded;
+    }
+
+    /**
+     * Installs Podium when the project is Sodium and Podium is not installed yet.
+     * Best effort: a missing Podium build for this Minecraft version must not fail the Sodium install.
+     *
+     * @return the number of files that were downloaded
+     */
+    private static int installPodiumForSodium(@Nullable String projectId, boolean shader, SupersonicProfile profile,
+                                              Set<String> installedProjectIds, Set<String> visited, int depth) {
+        if (shader || !SODIUM_ID.equals(projectId) || installedProjectIds.contains(PODIUM_ID)) return 0;
+        try {
+            return install(PODIUM_ID, false, profile, installedProjectIds, visited, depth + 1);
+        } catch (IOException ignored) {
+            return 0;
+        }
     }
 
     // ---------------------------------------------------------------- installed mods
@@ -404,6 +435,15 @@ public final class ModrinthClient {
                 old.file.delete();
             }
             updated++;
+        }
+
+        // Sodium cannot start on this launcher without Podium: add it to existing installs too
+        boolean hasPodium = false;
+        for (Installed item : installed) if (PODIUM_ID.equals(item.projectId)) hasPodium = true;
+        if (!hasPodium) {
+            Set<String> ids = projectIds(installed);
+            updated += installPodiumForSodium(ids.contains(SODIUM_ID) ? SODIUM_ID : null, false, profile,
+                    ids, new HashSet<>(), 0);
         }
         return updated;
     }
