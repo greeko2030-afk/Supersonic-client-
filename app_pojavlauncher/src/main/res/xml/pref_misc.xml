@@ -7,6 +7,11 @@
     <PreferenceCategory android:title="@string/preference_category_miscellaneous">
         <SwitchPreference
             android:defaultValue="true"
+            android:key="supersonic_fast_launch"
+            android:summary="Does not hash or look up files that are already downloaded and have the right size. Launches much faster. Turn off to verify every file again."
+            android:title="Fast launch" />
+        <SwitchPreference
+            android:defaultValue="true"
             android:icon="@drawable/ic_setting_hash_verification"
             android:key="checkLibraries"
             android:summary="@string/mcl_setting_check_libraries_subtitle"
