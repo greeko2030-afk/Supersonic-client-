@@ -71,8 +71,8 @@ public class DownloadUtils {
         HttpURLConnection conn = (HttpURLConnection) new URL(urlInput).openConnection();
         conn.setConnectTimeout(TIME_OUT);
         conn.setReadTimeout(TIME_OUT);
-        InputStream readStr = conn.getInputStream();
-        try (FileOutputStream fos = new FileOutputStream(outputFile)) {
+        try (InputStream readStr = conn.getInputStream();
+             FileOutputStream fos = new FileOutputStream(outputFile)) {
             int current;
             int overall = 0;
             int length = conn.getContentLength();
@@ -84,8 +84,16 @@ public class DownloadUtils {
                 fos.write(buffer, 0, current);
                 monitor.updateProgress(overall, length);
             }
+            // Do not call conn.disconnect() here. Once the whole body is read and the stream is
+            // closed, the connection goes back to the keep-alive pool and the next download reuses it.
+            // disconnect() closed it, so every file needed a new TCP and TLS handshake.
+        } catch (FileNotFoundException e) {
             conn.disconnect();
+            // Keep this exception type: DownloadMirror falls back to the official source on it
+            throw e;
         } catch (IOException e) {
+            // A connection that failed must not be reused
+            conn.disconnect();
             throw new IOException("Unable to download from " + urlInput, e);
         }
     }
