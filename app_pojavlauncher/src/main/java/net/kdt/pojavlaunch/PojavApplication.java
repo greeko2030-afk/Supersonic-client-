@@ -31,6 +31,10 @@ public class PojavApplication extends Application {
 	@Override
 	public void onCreate() {
 		ContextExecutor.setApplication(this);
+		// Parallel downloads reuse their connections. The default pool keeps only 5 idle connections,
+		// far below the number of download threads, so the others would be closed and opened again.
+		// This must be set before the first HTTP request of the app.
+		System.setProperty("http.maxConnections", "32");
 		Thread.setDefaultUncaughtExceptionHandler((thread, th) -> {
 			boolean storagePermAllowed = (Build.VERSION.SDK_INT < 23 || Build.VERSION.SDK_INT >= 29 ||
 					ActivityCompat.checkSelfPermission(PojavApplication.this, android.Manifest.permission.WRITE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED) && Tools.checkStorageRoot(PojavApplication.this);
