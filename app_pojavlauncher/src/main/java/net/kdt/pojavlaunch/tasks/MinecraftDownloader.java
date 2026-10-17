@@ -51,6 +51,7 @@ public class MinecraftDownloader {
     private File mSourceJarFile; // The source client JAR picked during the inheritance process
     private File mTargetJarFile; // The destination client JAR to which the source will be copied to.
     private boolean mUseFileCounter; // Whether a file counter or a size counter should be used for progress
+    private boolean mFastVerify; // Fast launch: do not hash or ask the network about files that are already on disk
 
     private static final ThreadLocal<byte[]> sThreadLocalDownloadBuffer = new ThreadLocal<>();
 
@@ -102,15 +103,17 @@ public class MinecraftDownloader {
         mInternetUsageCounter = new AtomicLong(0);
         mDownloaderThreadException = new AtomicReference<>(null);
         mUseFileCounter = false;
+        mFastVerify = isFastLaunchEnabled();
 
         if(!downloadAndProcessMetadata(activity, verInfo, versionName)) {
             throw new RuntimeException(activity.getString(R.string.exception_failed_to_unpack_jre17));
         }
 
         ArrayBlockingQueue<Runnable> taskQueue =
-                new ArrayBlockingQueue<>(mScheduledDownloadTasks.size(), false);
+                new ArrayBlockingQueue<>(Math.max(1, mScheduledDownloadTasks.size()), false);
+        int threadCount = getDownloadThreadCount();
         ThreadPoolExecutor downloaderPool =
-                new ThreadPoolExecutor(4, 4, 500, TimeUnit.MILLISECONDS, taskQueue);
+                new ThreadPoolExecutor(threadCount, threadCount, 500, TimeUnit.MILLISECONDS, taskQueue);
 
         // I have tried pre-filling the queue directly instead of doing this, but it didn't work.
         // What a shame.
@@ -119,7 +122,7 @@ public class MinecraftDownloader {
 
         try {
             while (mDownloaderThreadException.get() == null &&
-                    !downloaderPool.awaitTermination(33, TimeUnit.MILLISECONDS)) {
+                    !downloaderPool.awaitTermination(100, TimeUnit.MILLISECONDS)) {
                 double speed = speedCalculator.feed(mInternetUsageCounter.get()) / ONE_MEGABYTE;
                 if(mUseFileCounter) reportProgressFileCounter(speed);
                 else reportProgressSizeCounter(speed);
@@ -287,7 +290,17 @@ public class MinecraftDownloader {
         mTotalFileCount++;
         // Only attempt to check size if we still use the size counter and didn't switch to file counter.
         if(size <= 0 && !mUseFileCounter) {
-            size = DownloadMirror.getContentLengthMirrored(downloadClass, url);
+            if(mFastVerify && targetFile.isFile() && targetFile.length() > 0) {
+                // Already on disk, so its size is known without any network request
+                size = targetFile.length();
+            } else if(mFastVerify) {
+                // Not on disk and the size is unknown. Asking the server costs one request per file,
+                // one after another, before the first download even starts.
+                // Track the progress by the number of files instead.
+                size = -1;
+            } else {
+                size = DownloadMirror.getContentLengthMirrored(downloadClass, url);
+            }
         }
         if(size < 0) {
             // If we were unable to get the content length ourselves, we automatically fall back
@@ -416,10 +429,25 @@ public class MinecraftDownloader {
         mSourceJarFile = clientJar;
     }
 
+    /**
+     * Number of parallel downloads. The work is limited by the network and not by the CPU,
+     * so this is well above the number of cores. It was 4 before.
+     */
+    private static int getDownloadThreadCount() {
+        int cores = Runtime.getRuntime().availableProcessors();
+        return Math.max(12, Math.min(24, cores * 4));
+    }
+
+    /** Fast launch is on by default. It can be turned off in the settings (Miscellaneous). */
+    private static boolean isFastLaunchEnabled() {
+        return LauncherPreferences.DEFAULT_PREF == null
+                || LauncherPreferences.DEFAULT_PREF.getBoolean("supersonic_fast_launch", true);
+    }
+
     private static byte[] getLocalBuffer() {
         byte[] tlb = sThreadLocalDownloadBuffer.get();
         if(tlb != null) return tlb;
-        tlb = new byte[32768];
+        tlb = new byte[65536];
         sThreadLocalDownloadBuffer.set(tlb);
         return tlb;
     }
@@ -487,8 +515,11 @@ public class MinecraftDownloader {
         }
 
         private void runCatching() throws Exception {
-            if(mDownloadClass == DownloadMirror.DOWNLOAD_CLASS_LIBRARIES && !Tools.isValidString(mTargetSha1)) {
-                // If we're downloading a library, try to get sha1 since it might be available as a file
+            if(mDownloadClass == DownloadMirror.DOWNLOAD_CLASS_LIBRARIES && !Tools.isValidString(mTargetSha1)
+                    && !(mFastVerify && mTargetPath.exists())) {
+                // If we're downloading a library, try to get sha1 since it might be available as a file.
+                // A library that is already installed does not need it: with fast launch it is
+                // trusted, and it saves one network request per library at every launch.
                 tryGetLibrarySha1();
             }
             if(Tools.isValidString(mTargetSha1)) {
@@ -502,13 +533,22 @@ public class MinecraftDownloader {
         }
         
         private void verifyFileSha1() throws Exception {
-            if(mTargetPath.isFile() && mTargetPath.canRead() && Tools.compareSHA1(mTargetPath, mTargetSha1)) {
-                finishWithoutDownloading();
-            } else {
-                // Rely on the download function to throw an IOE in case if the file is not
-                // writable/not a file/etc...
-                downloadFile();
+            if(mTargetPath.isFile() && mTargetPath.canRead()) {
+                // Fast launch: the file was hashed when it was downloaded, so a file with exactly the
+                // expected size is not read and hashed again at every launch. An interrupted download
+                // is always smaller, so it is still downloaded again.
+                if(mFastVerify && mDownloadSize > 0 && mTargetPath.length() == mDownloadSize) {
+                    finishWithoutDownloading();
+                    return;
+                }
+                if(Tools.compareSHA1(mTargetPath, mTargetSha1)) {
+                    finishWithoutDownloading();
+                    return;
+                }
             }
+            // Rely on the download function to throw an IOE in case if the file is not
+            // writable/not a file/etc...
+            downloadFile();
         }
         
         private void downloadFile() throws Exception {
