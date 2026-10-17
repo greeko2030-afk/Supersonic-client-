@@ -291,11 +291,16 @@ public class ModItemAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
             mExtendedLayout.setVisibility(View.VISIBLE);
             mDescription.setMaxLines(99);
 
-            // We need to align to the longer section
-            int futureBottom = mDescription.getBottom() + Tools.mesureTextviewHeight(mDescription) - mDescription.getHeight();
-            ConstraintLayout.LayoutParams params = (ConstraintLayout.LayoutParams) mExtendedLayout.getLayoutParams();
-            params.topToBottom = futureBottom > mIconView.getBottom() ? R.id.mod_body_textview : R.id.mod_thumbnail_imageview;
-            mExtendedLayout.setLayoutParams(params);
+            // In a ConstraintLayout card, the extended section has to be aligned to the longer section.
+            // The Supersonic card is a vertical LinearLayout, which already places the extended
+            // section below the description, so there is nothing to align in that case.
+            ViewGroup.LayoutParams layoutParams = mExtendedLayout.getLayoutParams();
+            if(layoutParams instanceof ConstraintLayout.LayoutParams) {
+                ConstraintLayout.LayoutParams params = (ConstraintLayout.LayoutParams) layoutParams;
+                int futureBottom = mDescription.getBottom() + Tools.mesureTextviewHeight(mDescription) - mDescription.getHeight();
+                params.topToBottom = futureBottom > mIconView.getBottom() ? R.id.mod_body_textview : R.id.mod_thumbnail_imageview;
+                mExtendedLayout.setLayoutParams(params);
+            }
         }
 
         private void closeDetailedView(){
