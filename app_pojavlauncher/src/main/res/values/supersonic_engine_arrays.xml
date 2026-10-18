@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Graphics engine: the entries of the list preference "supersonic_graphics_engine" -->
+    <string-array name="supersonic_engine_mode_names">
+        <item>Auto (Vulkan 1.2 or newer: Vulkan, otherwise OpenGL)</item>
+        <item>OpenGL only</item>
+        <item>Vulkan (force)</item>
+    </string-array>
+
+    <string-array name="supersonic_engine_mode_values">
+        <item>auto</item>
+        <item>opengl</item>
+        <item>vulkan</item>
+    </string-array>
+</resources>
