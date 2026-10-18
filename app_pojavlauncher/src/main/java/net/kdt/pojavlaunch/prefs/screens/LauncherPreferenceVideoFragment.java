@@ -12,6 +12,7 @@ import net.kdt.pojavlaunch.R;
 import net.kdt.pojavlaunch.Tools;
 import net.kdt.pojavlaunch.prefs.CustomSeekBarPreference;
 import net.kdt.pojavlaunch.prefs.LauncherPreferences;
+import net.kdt.pojavlaunch.supersonic.VulkanEngine;
 
 /**
  * Fragment for any settings video related
@@ -52,6 +53,7 @@ public class LauncherPreferenceVideoFragment extends LauncherPreferenceFragment 
         rendererListPreference.setEntryValues(renderersList.rendererIds.toArray(new String[0]));
 
         setupPerformanceMode();
+        setupEngineMode();
         computeVisibility();
     }
 
@@ -63,6 +65,16 @@ public class LauncherPreferenceVideoFragment extends LauncherPreferenceFragment 
             String summary = net.kdt.pojavlaunch.supersonic.PerformanceModes.apply(
                     requireContext(), Integer.parseInt((String) newValue));
             android.widget.Toast.makeText(requireContext(), summary, android.widget.Toast.LENGTH_LONG).show();
+            return true;
+        });
+    }
+
+    /** The summary says which Vulkan version this device has and what the selected mode does with it. */
+    private void setupEngineMode() {
+        ListPreference engine = requirePreference(VulkanEngine.PREF_MODE, ListPreference.class);
+        engine.setSummary(VulkanEngine.settingsSummary(requireContext(), VulkanEngine.mode()));
+        engine.setOnPreferenceChangeListener((preference, newValue) -> {
+            engine.setSummary(VulkanEngine.settingsSummary(requireContext(), (String) newValue));
             return true;
         });
     }
