@@ -30,6 +30,7 @@ import net.kdt.pojavlaunch.multirt.MultiRTUtils;
 import net.kdt.pojavlaunch.multirt.Runtime;
 import net.kdt.pojavlaunch.plugins.FFmpegPlugin;
 import net.kdt.pojavlaunch.prefs.*;
+import net.kdt.pojavlaunch.supersonic.VulkanEngine;
 import org.lwjgl.glfw.*;
 
 public class JREUtils {
@@ -242,6 +243,12 @@ public class JREUtils {
 
         if(info.isAdreno() && !PREF_ZINK_PREFER_SYSTEM_DRIVER) {
             envMap.put("POJAV_LOAD_TURNIP", "1");
+        }
+
+        if("vulkan_zink".equals(LOCAL_RENDERER)) {
+            // Supersonic engine: Zink compiles every GLSL shader to SPIR-V. This is a persistent cache,
+            // so each shader is translated once and later launches load it from disk.
+            envMap.putAll(VulkanEngine.zinkEnvironment());
         }
 
         readCustomEnv(envMap); // Must be last so it overrides anything the user sets for obvious reasons.
