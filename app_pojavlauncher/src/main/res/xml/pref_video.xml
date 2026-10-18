@@ -14,6 +14,15 @@
             android:defaultValue="1"
             android:icon="@drawable/ic_bolt"
             app2:useSimpleSummaryProvider="false"/>
+        <androidx.preference.ListPreference
+            android:key="supersonic_graphics_engine"
+            android:title="Graphics engine"
+            android:summary="Translates the whole game from OpenGL to Vulkan when the device supports it"
+            android:entries="@array/supersonic_engine_mode_names"
+            android:entryValues="@array/supersonic_engine_mode_values"
+            android:defaultValue="auto"
+            android:icon="@drawable/ic_setting_engine"
+            app2:useSimpleSummaryProvider="false"/>
     </PreferenceCategory>
 
     <PreferenceCategory android:title="@string/preference_category_video" >
