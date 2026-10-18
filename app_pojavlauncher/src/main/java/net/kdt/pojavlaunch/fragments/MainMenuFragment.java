@@ -40,6 +40,7 @@ import net.kdt.pojavlaunch.supersonic.PerformanceModes;
 import net.kdt.pojavlaunch.supersonic.ResourcePacksFragment;
 import net.kdt.pojavlaunch.supersonic.SupersonicProfile;
 import net.kdt.pojavlaunch.supersonic.SupersonicUi;
+import net.kdt.pojavlaunch.supersonic.VulkanEngine;
 import net.kdt.pojavlaunch.supersonic.WorldsFragment;
 import net.kdt.pojavlaunch.value.launcherprofiles.LauncherProfiles;
 import net.kdt.pojavlaunch.value.launcherprofiles.MinecraftProfile;
@@ -161,6 +162,15 @@ public class MainMenuFragment extends Fragment {
         return Tools.getGameDirPath(profileObject);
     }
 
+    /** The renderer that the selected instance sets for itself, or null. */
+    @Nullable
+    private String getCurrentProfileRenderer() {
+        String key = LauncherPreferences.DEFAULT_PREF.getString(LauncherPreferences.PREF_KEY_CURRENT_PROFILE, null);
+        if(!Tools.isValidString(key) || LauncherProfiles.mainProfileJson == null) return null;
+        MinecraftProfile profile = LauncherProfiles.mainProfileJson.profiles.get(key);
+        return profile == null ? null : profile.pojavRendererName;
+    }
+
     @Override
     public void onResume() {
         super.onResume();
@@ -193,7 +203,8 @@ public class MainMenuFragment extends Fragment {
         mRamValue.setText(String.format(Locale.US, "%.1f / %.1f GB", usedGb, totalGb));
         mRamBar.setProgress(info.totalMem == 0 ? 0 : (int) (100f * (info.totalMem - info.availMem) / info.totalMem));
         mGameRamValue.setText(LauncherPreferences.PREF_RAM_ALLOCATION + " MB");
-        mPerfChip.setText("Performance: " + PerformanceModes.currentName(context));
+        mPerfChip.setText("Performance: " + PerformanceModes.currentName(context)
+                + "  \u2022  Engine: " + VulkanEngine.preview(context, getCurrentProfileRenderer()).shortLabel());
 
         mPingValue.setText("…");
         PojavApplication.sExecutorService.execute(() -> {
