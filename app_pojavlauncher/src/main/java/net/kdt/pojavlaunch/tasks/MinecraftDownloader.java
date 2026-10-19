@@ -27,6 +27,7 @@ import net.kdt.pojavlaunch.value.MinecraftLibraryArtifact;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.zip.ZipFile;
 import java.util.ArrayList;
 import java.util.Map;
 import java.util.Set;
@@ -362,7 +363,9 @@ public class MinecraftDownloader {
                 url = (dependentLibrary.url == null
                         ? "https://libraries.minecraft.net/"
                         : dependentLibrary.url.replace("http://","https://")) + libArtifactPath;
-                skipIfFailed = true;
+                // A missing library of Fabric, Quilt or Forge only shows up later as
+                // "Could not find or load main class", so those are never skipped
+                skipIfFailed = !isLoaderRepository(url);
             }
             if(!LauncherPreferences.PREF_CHECK_LIBRARY_SHA) sha1 = null;
             scheduleDownload(new File(Tools.DIR_HOME_LIBRARY, libArtifactPath),
@@ -435,7 +438,32 @@ public class MinecraftDownloader {
      */
     private static int getDownloadThreadCount() {
         int cores = Runtime.getRuntime().availableProcessors();
-        return Math.max(12, Math.min(24, cores * 4));
+        return Math.max(8, Math.min(16, cores * 2));
+    }
+
+    /** Each file is tried this many times before the download counts as failed. */
+    private static final int DOWNLOAD_ATTEMPTS = 3;
+
+    /**
+     * A jar, zip or aar that cannot be opened as an archive is damaged: an interrupted download,
+     * an error page that was saved as a file, or an empty file. Any other file is damaged when it is empty.
+     * Libraries of Fabric, Quilt and Forge have no hash, so this is the only way to see it without the network.
+     */
+    private static boolean isBrokenArchive(File file) {
+        if(file.length() == 0) return true;
+        String name = file.getName().toLowerCase();
+        if(!(name.endsWith(".jar") || name.endsWith(".zip") || name.endsWith(".aar"))) return false;
+        try (ZipFile ignored = new ZipFile(file)) {
+            return false;
+        } catch (IOException e) {
+            return true;
+        }
+    }
+
+    /** The libraries of these loaders are needed to start the game, so a failed download must not be skipped. */
+    private static boolean isLoaderRepository(String url) {
+        return url.contains("fabricmc.net") || url.contains("quiltmc.org")
+                || url.contains("minecraftforge.net") || url.contains("neoforged.net");
     }
 
     /** Fast launch is on by default. It can be turned off in the settings (Miscellaneous). */
@@ -527,8 +555,13 @@ public class MinecraftDownloader {
             }else {
                 mTargetSha1 = null; // Nullify SHA1 as DownloadUtils.ensureSha1 only checks for null,
                                     // not for string validity
-                if(mTargetPath.exists()) finishWithoutDownloading();
-                else downloadFile();
+                if(mTargetPath.exists() && !isBrokenArchive(mTargetPath)) {
+                    finishWithoutDownloading();
+                } else {
+                    // Missing, or damaged: without a hash ensureSha1 would keep a file that exists
+                    mTargetPath.delete();
+                    downloadFile();
+                }
             }
         }
         
@@ -552,14 +585,40 @@ public class MinecraftDownloader {
         }
         
         private void downloadFile() throws Exception {
-            try {
-                DownloadUtils.ensureSha1(mTargetPath, mTargetSha1, () -> {
-                    DownloadMirror.downloadFileMirrored(mDownloadClass, mTargetUrl, mTargetPath,
-                            getLocalBuffer(), this);
-                    return null;
-                });
-            }catch (Exception e) {
-                if(!mSkipIfFailed) throw e;
+            Exception failure = null;
+            for(int attempt = 0; attempt < DOWNLOAD_ATTEMPTS; attempt++) {
+                try {
+                    DownloadUtils.ensureSha1(mTargetPath, mTargetSha1, () -> {
+                        DownloadMirror.downloadFileMirrored(mDownloadClass, mTargetUrl, mTargetPath,
+                                getLocalBuffer(), this);
+                        return null;
+                    });
+                    failure = null;
+                    break;
+                } catch (DownloadUtils.SHA1VerificationException e) {
+                    // ensureSha1 already tried several times, the content itself is wrong
+                    failure = e;
+                    break;
+                } catch (Exception e) {
+                    failure = e;
+                    // A half written file must not stay: a file without a hash is trusted later
+                    mTargetPath.delete();
+                    // Take back the progress of this attempt, the next one starts at 0
+                    mProcessedSizeCounter.addAndGet(-mLastCurr);
+                    mLastCurr = 0;
+                    if(attempt + 1 < DOWNLOAD_ATTEMPTS) {
+                        try {
+                            Thread.sleep(400L * (attempt + 1));
+                        } catch (InterruptedException interrupted) {
+                            Thread.currentThread().interrupt();
+                            break;
+                        }
+                    }
+                }
+            }
+            if(failure != null) {
+                Log.w("NewMCDownloader", "Download failed: " + mTargetUrl, failure);
+                if(!mSkipIfFailed) throw failure;
             }
             mProcessedFileCounter.incrementAndGet();
         }
