@@ -641,6 +641,9 @@ public final class Tools {
         for (String jarFile : classpath) {
             if (!FileUtils.exists(jarFile)) {
                 Log.d(APP_NAME, "Ignored non-exists file: " + jarFile);
+                // Also in the game log: a missing library only shows up later as a cryptic
+                // "Could not find or load main class" error
+                Logger.appendToLog("Warning: library not found, it is not on the classpath: " + jarFile);
                 continue;
             }
             finalClasspath.append((isClientFirst ? ":" : "")).append(jarFile).append(!isClientFirst ? ":" : "");
