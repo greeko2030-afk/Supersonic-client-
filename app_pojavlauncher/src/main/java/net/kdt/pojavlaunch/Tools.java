@@ -327,7 +327,18 @@ public final class Tools {
 
         List<String> javaArgList = new ArrayList<>();
 
-        getCacioJavaArgs(javaArgList, runtime.javaVersion == 8);
+        if (runtime.javaVersion > 17) {
+            // The bundled Caciocavallo (an AWT stub) cannot start on Java 21. Its system class loader
+            // (CTCPreloadClassLoader) fails with an UnsupportedOperationException in VarForm.getMemberName,
+            // so the JVM cannot load any class and the game stops with
+            // "Could not find or load main class ...KnotClient".
+            // Minecraft itself does not need AWT (it uses GLFW and OpenGL), so it runs headless on Java 21.
+            javaArgList.add("-Djava.awt.headless=true");
+            // Opens the java.net package to the Arc DNS injector on Java 9+ (the Cacio arguments did this)
+            javaArgList.add("--add-opens=java.base/java.net=ALL-UNNAMED");
+        } else {
+            getCacioJavaArgs(javaArgList, runtime.javaVersion == 8);
+        }
 
         if (versionInfo.logging != null) {
             String configFile = Tools.DIR_DATA + "/security/" + versionInfo.logging.client.file.id.replace("client", "log4j-rce-patch");
