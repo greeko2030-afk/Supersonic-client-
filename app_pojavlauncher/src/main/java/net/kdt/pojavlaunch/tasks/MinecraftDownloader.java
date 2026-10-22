@@ -19,6 +19,7 @@ import net.kdt.pojavlaunch.Tools;
 import net.kdt.pojavlaunch.mirrors.DownloadMirror;
 import net.kdt.pojavlaunch.mirrors.MirrorTamperedException;
 import net.kdt.pojavlaunch.prefs.LauncherPreferences;
+import net.kdt.pojavlaunch.supersonic.SupersonicRepoMods;
 import net.kdt.pojavlaunch.utils.DownloadUtils;
 import net.kdt.pojavlaunch.utils.FileUtils;
 import net.kdt.pojavlaunch.value.DependentLibrary;
@@ -75,6 +76,8 @@ public class MinecraftDownloader {
         sExecutorService.execute(() -> {
             try {
                 downloadGame(activity, version, realVersion);
+                // The mods of the Supersonic repository that this instance supports. It never fails the launch.
+                SupersonicRepoMods.prepareForLaunch();
                 listener.onDownloadDone();
             }catch (Exception e) {
                 listener.onDownloadFailed(e);

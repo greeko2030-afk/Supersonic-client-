@@ -203,8 +203,10 @@ public class MainMenuFragment extends Fragment {
         mRamValue.setText(String.format(Locale.US, "%.1f / %.1f GB", usedGb, totalGb));
         mRamBar.setProgress(info.totalMem == 0 ? 0 : (int) (100f * (info.totalMem - info.availMem) / info.totalMem));
         mGameRamValue.setText(LauncherPreferences.PREF_RAM_ALLOCATION + " MB");
-        mPerfChip.setText("Performance: " + PerformanceModes.currentName(context)
-                + "  \u2022  Engine: " + VulkanEngine.preview(context, getCurrentProfileRenderer()).shortLabel());
+        String engine = VulkanEngine.MODE_AUTO.equals(VulkanEngine.mode())
+                ? "  \u2022  Engine: " + VulkanEngine.preview(context, getCurrentProfileRenderer()).shortLabel()
+                : "";
+        mPerfChip.setText("Performance: " + PerformanceModes.currentName(context) + engine);
 
         mPingValue.setText("…");
         PojavApplication.sExecutorService.execute(() -> {

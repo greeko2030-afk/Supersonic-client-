@@ -71,7 +71,6 @@ import net.kdt.pojavlaunch.value.launcherprofiles.MinecraftProfile;
 import org.lwjgl.glfw.CallbackBridge;
 
 import java.io.File;
-import java.util.List;
 import java.io.IOException;
 
 public class MainActivity extends BaseActivity implements ControlButtonMenuListener, EditorExitable, ServiceConnection {
@@ -351,10 +350,11 @@ public class MainActivity extends BaseActivity implements ControlButtonMenuListe
     }
 
     /**
-     * The Supersonic graphics engine. On a device with Vulkan 1.2 or newer the whole game, with its mods and
-     * shader packs, runs on Vulkan: Mesa Zink translates the OpenGL calls and compiles every GLSL shader to SPIR-V.
-     * Below Vulkan 1.2 nothing changes. The rules, the crash guard and the shader cache are in VulkanEngine.
-     * An instance that sets its own renderer keeps it when the engine mode is Auto.
+     * The Supersonic graphics engine. It is manual by default: nothing is detected or changed and the renderer that
+     * the user selected is used. Only when the user selected Auto in Settings > Video, a device with Vulkan 1.2 or
+     * newer runs the whole game on Vulkan (Mesa Zink translates OpenGL and compiles every GLSL shader to SPIR-V).
+     * The rules, the crash guard and the shader cache are in VulkanEngine.
+     * An instance that sets its own renderer keeps it in Auto too.
      */
     private VulkanEngine.Decision useGraphicsEngine() {
         VulkanEngine.Decision decision = VulkanEngine.decide(this, minecraftProfile.pojavRendererName);
@@ -370,26 +370,18 @@ public class MainActivity extends BaseActivity implements ControlButtonMenuListe
     }
 
     /**
-     * Sodium cannot run on the gl4es renderer (OpenGL 2.1): its chunk renderer needs OpenGL 3.2 or newer,
-     * so the game crashes natively as soon as a world is loaded. When the instance has Sodium
-     * and the renderer is gl4es, LTW (or Zink when LTW is not available) is used for this launch.
-     * The renderer that the user selected in the settings is not changed.
+     * Sodium cannot run on the gl4es renderer (OpenGL 2.1): its chunk renderer needs OpenGL 3.2 or newer, so the
+     * game crashes natively as soon as a world is loaded. The renderer is chosen by the user and is never changed
+     * automatically, so this only warns, in the game log and with a message on the screen.
      */
-    private void useSodiumCompatibleRenderer() {
+    private void warnIfSodiumNeedsAnotherRenderer() {
         if(!"opengles2".equals(Tools.LOCAL_RENDERER)) return;
         if(!hasSodiumMod(Tools.getGameDirPath(minecraftProfile))) return;
 
-        List<String> compatible = Tools.getCompatibleRenderers(this).rendererIds;
-        String replacement = null;
-        if(compatible.contains("opengles3_ltw")) replacement = "opengles3_ltw";
-        else if(compatible.contains("vulkan_zink")) replacement = "vulkan_zink";
-
-        if(replacement == null) {
-            Logger.appendToLog("Warning: Sodium needs the LTW or Zink renderer, but this device has neither. The game will probably crash.");
-            return;
-        }
-        Logger.appendToLog("Sodium found: using the " + replacement + " renderer instead of gl4es (OpenGL 2.1)");
-        Tools.LOCAL_RENDERER = replacement;
+        final String message = "Sodium cannot run on the gl4es renderer and the game will probably crash. "
+                + "Select the LTW renderer in Settings > Video.";
+        Logger.appendToLog("Warning: " + message);
+        Tools.runOnUiThread(() -> Toast.makeText(this, message, Toast.LENGTH_LONG).show());
     }
 
     /** Checks if the mods folder has an enabled Sodium (or a Sodium based mod). */
@@ -415,7 +407,7 @@ public class MainActivity extends BaseActivity implements ControlButtonMenuListe
             Tools.releaseRenderersCache();
         }
         VulkanEngine.Decision engine = useGraphicsEngine();
-        useSodiumCompatibleRenderer();
+        warnIfSodiumNeedsAnotherRenderer();
         MinecraftAccount minecraftAccount = PojavProfile.getCurrentProfileContent(this, null);
         Logger.appendToLog("--------- Starting game with Launcher Debug!");
         Tools.printLauncherInfo(versionId, Tools.isValidString(minecraftProfile.javaArgs) ? minecraftProfile.javaArgs : LauncherPreferences.PREF_CUSTOM_JAVA_ARGS);
@@ -426,7 +418,7 @@ public class MainActivity extends BaseActivity implements ControlButtonMenuListe
         if(engine.useVulkan) VulkanEngine.armGuard();
         Tools.launchMinecraft(this, minecraftAccount, minecraftProfile, versionId, requiredJavaVersion);
         //Note that we actually stall in the above function, even if the game crashes. But let's be safe.
-        Tools.runOnUiThread(()-> mServiceBinder.isActive = false);
+        Tools.runOnUiThread(() -> mServiceBinder.isActive = false);
     }
 
     private void dialogSendCustomKey() {
@@ -541,7 +533,7 @@ public class MainActivity extends BaseActivity implements ControlButtonMenuListe
 
     @Keep
     public static void querySystemClipboard() {
-        Tools.runOnUiThread(()->{
+        Tools.runOnUiThread(() ->{
             ClipData clipData = GLOBAL_CLIPBOARD.getPrimaryClip();
             if(clipData == null) {
                 AWTInputBridge.nativeClipboardReceived(null, null);
@@ -560,7 +552,7 @@ public class MainActivity extends BaseActivity implements ControlButtonMenuListe
 
     @Keep
     public static void putClipboardData(String data, String mimeType) {
-        Tools.runOnUiThread(()-> {
+        Tools.runOnUiThread(() -> {
             ClipData clipData = null;
             switch(mimeType) {
                 case "text/plain":

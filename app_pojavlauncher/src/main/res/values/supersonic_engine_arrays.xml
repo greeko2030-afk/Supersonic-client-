@@ -2,14 +2,12 @@
 <resources>
     <!-- Graphics engine: the entries of the list preference "supersonic_graphics_engine" -->
     <string-array name="supersonic_engine_mode_names">
-        <item>Auto (Vulkan 1.2 or newer: Vulkan, otherwise OpenGL)</item>
-        <item>OpenGL only</item>
-        <item>Vulkan (force)</item>
+        <item>Manual (default: the renderer that you select)</item>
+        <item>Auto (Vulkan 1.2 or newer: Vulkan)</item>
     </string-array>
 
     <string-array name="supersonic_engine_mode_values">
+        <item>manual</item>
         <item>auto</item>
-        <item>opengl</item>
-        <item>vulkan</item>
     </string-array>
 </resources>

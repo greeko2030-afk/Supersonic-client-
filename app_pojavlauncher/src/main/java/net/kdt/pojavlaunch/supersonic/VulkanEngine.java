@@ -32,10 +32,12 @@ import java.util.Map;
  * is compiled by Mesa to SPIR-V. Zink uses the core features of the Vulkan version that the driver reports,
  * so a Vulkan 1.2 device runs on the 1.2 path, a 1.3 device on the 1.3 path and a 1.4 device on the 1.4 path.
  *
- * This class decides when that is used:
+ * The engine mode decides what happens:
  * <ul>
- *   <li>no Vulkan, Vulkan 1.0 or Vulkan 1.1: OpenGL, nothing changes</li>
- *   <li>Vulkan 1.2, 1.3 and 1.4 (or newer): Vulkan through Zink</li>
+ *   <li>Manual (the default): nothing is detected or changed. The renderer that the user selected in
+ *       Settings > Video is used.</li>
+ *   <li>Auto (opt-in): no Vulkan, Vulkan 1.0 or Vulkan 1.1 stays on OpenGL, and Vulkan 1.2, 1.3 and 1.4
+ *       (or newer) runs on Vulkan through Zink.</li>
  * </ul>
  * It also keeps a persistent shader cache (so a GLSL shader is compiled to SPIR-V only once) and a crash guard:
  * when the game did not start on Vulkan, the next launches go back to OpenGL.
@@ -45,12 +47,10 @@ public final class VulkanEngine {
 
     /** Key of the "Graphics engine" list preference. */
     public static final String PREF_MODE = "supersonic_graphics_engine";
-    /** Vulkan 1.2 or newer uses Vulkan, everything else uses OpenGL. */
+    /** The default. The engine changes nothing: the renderer that the user selected is used. */
+    public static final String MODE_MANUAL = "manual";
+    /** Vulkan 1.2 or newer uses Vulkan, everything else keeps the renderer that the user selected. */
     public static final String MODE_AUTO = "auto";
-    /** The engine never switches to Vulkan. */
-    public static final String MODE_OPENGL = "opengl";
-    /** Vulkan for every instance, even below Vulkan 1.2. */
-    public static final String MODE_VULKAN = "vulkan";
 
     /** The renderer that translates OpenGL to Vulkan (Mesa Zink). */
     public static final String VULKAN_RENDERER = "vulkan_zink";
@@ -152,16 +152,20 @@ public final class VulkanEngine {
         public final String reason;
         /** True when Vulkan is off because it did not start the last time. */
         public final boolean blockedByGuard;
+        /** True in the manual mode: the engine does not decide anything. */
+        public final boolean manual;
 
-        Decision(boolean useVulkan, int tier, String reason, boolean blockedByGuard) {
+        Decision(boolean useVulkan, int tier, String reason, boolean blockedByGuard, boolean manual) {
             this.useVulkan = useVulkan;
             this.tier = tier;
             this.reason = reason;
             this.blockedByGuard = blockedByGuard;
+            this.manual = manual;
         }
 
         /** Short name for the screen, for example "Vulkan 1.3" or "OpenGL". */
         public String shortLabel() {
+            if (manual) return "Manual";
             if (!useVulkan) return "OpenGL";
             return tier == 0 ? "Vulkan" : tierName(tier);
         }
@@ -172,17 +176,18 @@ public final class VulkanEngine {
         }
     }
 
-    /** @return the engine mode that the user selected */
+    /**
+     * @return the engine mode. Only an explicit "auto" turns the automatic engine on: a missing value, and the
+     * "opengl" and "vulkan" values of earlier versions, all mean manual.
+     */
     public static String mode() {
         SharedPreferences prefs = LauncherPreferences.DEFAULT_PREF;
-        if (prefs == null) return MODE_AUTO;
-        String mode;
+        if (prefs == null) return MODE_MANUAL;
         try {
-            mode = prefs.getString(PREF_MODE, MODE_AUTO);
+            return MODE_AUTO.equals(prefs.getString(PREF_MODE, MODE_MANUAL)) ? MODE_AUTO : MODE_MANUAL;
         } catch (ClassCastException e) {
-            return MODE_AUTO;
+            return MODE_MANUAL;
         }
-        return MODE_OPENGL.equals(mode) || MODE_VULKAN.equals(mode) ? mode : MODE_AUTO;
     }
 
     /**
@@ -201,43 +206,47 @@ public final class VulkanEngine {
 
     private static Decision evaluate(Context context, @Nullable String profileRenderer, boolean launching) {
         String mode = mode();
+        if (MODE_MANUAL.equals(mode)) {
+            // No detection and no change. The renderer that the user selected is used.
+            if (launching) {
+                // The user chose manual: markers of an earlier Auto launch are not valid any more,
+                // so Auto gets a fresh start when the user selects it again
+                attemptFile().delete();
+                blockedFile().delete();
+            }
+            return new Decision(false, 0, "the renderer that is selected in the settings is used", false, true);
+        }
+
         Device device = detect(context);
         int tier = tierOf(device);
         if (launching) refreshGuard(mode);
 
-        if (MODE_OPENGL.equals(mode)) {
-            return keep(tier, "the engine mode is OpenGL");
-        }
         if (!zinkAvailable(context, launching, device)) {
             return keep(tier, device.hasVulkan
                     ? "the Vulkan renderer is not available on this device"
                     : "this device has no Vulkan");
         }
-        if (MODE_VULKAN.equals(mode)) {
-            return vulkan(tier, "the engine mode is Vulkan" + (tier == 0 ? " (forced, " + device.label() + ")" : " (forced)"));
-        }
-
         // Auto
         if (profileRenderer != null && !profileRenderer.isEmpty()) {
             return keep(tier, "the instance uses its own renderer (" + profileRenderer + ")");
         }
         if (tier == 0) {
-            return keep(tier, device.label() + " is older than Vulkan 1.2, so OpenGL is used");
+            return keep(tier, device.label() + " is older than Vulkan 1.2, so the selected renderer is used");
         }
         if (isBlocked(mode)) {
-            return new Decision(false, tier, "the Vulkan engine did not start last time, so OpenGL is used. "
-                    + "Change the engine mode in Settings > Video to try again", true);
+            return new Decision(false, tier, "the Vulkan engine did not start last time, so the selected renderer is used. "
+                    + "Change the graphics engine in Settings > Video to try again", true, false);
         }
         return vulkan(tier, device.label() + " detected, OpenGL is translated to Vulkan");
     }
 
     private static Decision keep(int tier, String reason) {
-        return new Decision(false, tier, reason, false);
+        return new Decision(false, tier, reason, false, false);
     }
 
     private static Decision vulkan(int tier, String reason) {
         sLastTier = tier;
-        return new Decision(true, tier, reason, false);
+        return new Decision(true, tier, reason, false, false);
     }
 
     private static boolean zinkAvailable(Context context, boolean launching, Device device) {
@@ -249,17 +258,14 @@ public final class VulkanEngine {
 
     /** Text for the settings screen: what this device has and what the selected mode does with it. */
     public static String settingsSummary(Context context, String mode) {
+        if (!MODE_AUTO.equals(mode)) {
+            return "Manual: nothing is detected or changed. The renderer that you select in Settings > Video is used.";
+        }
         Device device = detect(context);
         int tier = tierOf(device);
         String found = device.hasVulkan ? "This device has " + device.label() + ". " : "This device has no Vulkan. ";
-        if (MODE_OPENGL.equals(mode)) {
-            return found + "OpenGL only: the engine never switches to Vulkan.";
-        }
-        if (MODE_VULKAN.equals(mode)) {
-            return found + "Vulkan is forced for every instance. Below Vulkan 1.2 it can be slow or unstable.";
-        }
         if (tier == 0) {
-            return found + "Auto: OpenGL is used, Vulkan 1.2 or newer is needed.";
+            return found + "Auto: the selected renderer is used, Vulkan 1.2 or newer is needed.";
         }
         return found + "Auto: the whole game runs on " + tierName(tier)
                 + " through Zink. Shaders are compiled to SPIR-V once and cached.";

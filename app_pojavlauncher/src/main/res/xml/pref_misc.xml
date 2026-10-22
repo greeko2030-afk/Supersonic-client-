@@ -2,9 +2,12 @@
 <PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app2="http://schemas.android.com/apk/res-auto">
 
-    
-
     <PreferenceCategory android:title="@string/preference_category_miscellaneous">
+        <SwitchPreference
+            android:defaultValue="true"
+            android:key="supersonic_repo_mods"
+            android:summary="Installs the mods of the Supersonic mod repository into every instance that supports them, and checks for new mods when the app opens."
+            android:title="Supersonic mods" />
         <SwitchPreference
             android:defaultValue="true"
             android:key="supersonic_fast_launch"

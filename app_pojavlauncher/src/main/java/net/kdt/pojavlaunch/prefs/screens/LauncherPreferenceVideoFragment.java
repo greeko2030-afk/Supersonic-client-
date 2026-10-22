@@ -72,6 +72,8 @@ public class LauncherPreferenceVideoFragment extends LauncherPreferenceFragment 
     /** The summary says which Vulkan version this device has and what the selected mode does with it. */
     private void setupEngineMode() {
         ListPreference engine = requirePreference(VulkanEngine.PREF_MODE, ListPreference.class);
+        // Earlier versions stored "opengl" and "vulkan". Both mean manual now.
+        if(!VulkanEngine.MODE_AUTO.equals(engine.getValue())) engine.setValue(VulkanEngine.MODE_MANUAL);
         engine.setSummary(VulkanEngine.settingsSummary(requireContext(), VulkanEngine.mode()));
         engine.setOnPreferenceChangeListener((preference, newValue) -> {
             engine.setSummary(VulkanEngine.settingsSummary(requireContext(), (String) newValue));
