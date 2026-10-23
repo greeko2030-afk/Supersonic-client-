@@ -31,6 +31,7 @@ import net.kdt.pojavlaunch.multirt.Runtime;
 import net.kdt.pojavlaunch.plugins.FFmpegPlugin;
 import net.kdt.pojavlaunch.prefs.*;
 import net.kdt.pojavlaunch.supersonic.VulkanEngine;
+import net.kdt.pojavlaunch.supersonic.ZgcDefaults;
 import org.lwjgl.glfw.*;
 
 public class JREUtils {
@@ -321,6 +322,16 @@ public class JREUtils {
         // Some phones are not using the right number of cores, fix that
         userArgs.add("-XX:ActiveProcessorCount=" + java.lang.Runtime.getRuntime().availableProcessors());
 
+        // Supersonic: ZGC is the default garbage collector of Java 17 and newer. A collector that the user chose
+        // in the Java arguments is kept, and ZGC is dropped when it cannot start on this device.
+        ZgcDefaults.Result collector = ZgcDefaults.decide(runtime.javaVersion, userArgs, BuildConfig.VERSION_NAME);
+        userArgs.addAll(collector.arguments);
+        Logger.appendToLog(collector.used()
+                ? "JVM: garbage collector " + collector.arguments + " (default)"
+                : "JVM: default garbage collector of Java is used, ZGC is not added: " + collector.reason);
+        final boolean zgcIsDefault = collector.used();
+        final long jvmStartNanos = System.nanoTime();
+
         userArgs.addAll(JVMArgs);
         activity.runOnUiThread(() -> Toast.makeText(activity, activity.getString(R.string.autoram_info_msg,LauncherPreferences.PREF_RAM_ALLOCATION), Toast.LENGTH_SHORT).show());
         System.out.println(JVMArgs);
@@ -333,6 +344,14 @@ public class JREUtils {
 
         final int exitCode = VMLauncher.launchJVM(userArgs.toArray(new String[0]));
         Logger.appendToLog("Java Exit code: " + exitCode);
+        if(zgcIsDefault && exitCode != 0) {
+            // Give the log a moment to receive the message of the JVM, then look at it
+            try { Thread.sleep(500); } catch (InterruptedException ignored) { Thread.currentThread().interrupt(); }
+            long ranMs = (System.nanoTime() - jvmStartNanos) / 1_000_000L;
+            if(ZgcDefaults.onJvmExit(exitCode, ranMs, new File(Tools.DIR_GAME_HOME, "latestlog.txt"), BuildConfig.VERSION_NAME)) {
+                Logger.appendToLog("JVM: ZGC could not start on this device. The default garbage collector is used from the next launch.");
+            }
+        }
         if (exitCode != 0) {
             LifecycleAwareAlertDialog.DialogCreator dialogCreator = (dialog, builder)->
                     builder.setMessage(activity.getString(R.string.mcn_exit_title, exitCode))
