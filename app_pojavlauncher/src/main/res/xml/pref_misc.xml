@@ -7,6 +7,16 @@
     <PreferenceCategory android:title="@string/preference_category_miscellaneous">
         <SwitchPreference
             android:defaultValue="true"
+            android:key="supersonic_zgc"
+            android:summary="Uses ZGC as the garbage collector on Java 17 and newer. A collector in the Java arguments is kept. If ZGC cannot start on this device, the default collector is used."
+            android:title="ZGC (Java 17+)" />
+        <SwitchPreference
+            android:defaultValue="true"
+            android:key="supersonic_repo_mods"
+            android:summary="Installs the mods of the Supersonic mod repository into every instance that supports them, and checks for new mods when the app opens."
+            android:title="Supersonic mods" />
+        <SwitchPreference
+            android:defaultValue="true"
             android:key="supersonic_fast_launch"
             android:summary="Does not hash or look up files that are already downloaded and have the right size. Launches much faster. Turn off to verify every file again."
             android:title="Fast launch" />
