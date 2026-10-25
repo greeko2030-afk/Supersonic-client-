@@ -15,6 +15,10 @@
             android:key="supersonic_repo_mods"
             android:summary="Installs the mods of the Supersonic mod repository into every instance that supports them, and checks for new mods when the app opens."
             android:title="Supersonic mods" />
+        <Preference
+            android:key="supersonic_repo_mods_check"
+            android:summary="Checks the mod repository now and shows, for every mod, if it was installed and if not, why."
+            android:title="Check Supersonic mods now" />
         <SwitchPreference
             android:defaultValue="true"
             android:key="supersonic_fast_launch"
