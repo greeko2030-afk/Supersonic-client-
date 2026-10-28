@@ -330,7 +330,6 @@ public class JREUtils {
                 ? "JVM: garbage collector " + collector.arguments + " (default)"
                 : "JVM: default garbage collector of Java is used, ZGC is not added: " + collector.reason);
         final boolean zgcIsDefault = collector.used();
-        final long jvmStartNanos = System.nanoTime();
 
         userArgs.addAll(JVMArgs);
         activity.runOnUiThread(() -> Toast.makeText(activity, activity.getString(R.string.autoram_info_msg,LauncherPreferences.PREF_RAM_ALLOCATION), Toast.LENGTH_SHORT).show());
@@ -342,11 +341,17 @@ public class JREUtils {
         chdir(gameDirectory == null ? Tools.DIR_GAME_NEW : gameDirectory.getAbsolutePath());
         userArgs.add(0,"java"); //argv[0] is the program name according to C standard.
 
+        // ZGC can crash the whole process, and then no code runs after the JVM. The marker that is written here
+        // tells the next launch that this one died, and ZGC is not used again.
+        if(zgcIsDefault) ZgcDefaults.armGuard(BuildConfig.VERSION_NAME);
+        final long jvmStartNanos = System.nanoTime();
         final int exitCode = VMLauncher.launchJVM(userArgs.toArray(new String[0]));
         Logger.appendToLog("Java Exit code: " + exitCode);
-        if(zgcIsDefault && exitCode != 0) {
-            // Give the log a moment to receive the message of the JVM, then look at it
-            try { Thread.sleep(500); } catch (InterruptedException ignored) { Thread.currentThread().interrupt(); }
+        if(zgcIsDefault) {
+            if(exitCode != 0) {
+                // Give the log a moment to receive the message of the JVM, then look at it
+                try { Thread.sleep(500); } catch (InterruptedException ignored) { Thread.currentThread().interrupt(); }
+            }
             long ranMs = (System.nanoTime() - jvmStartNanos) / 1_000_000L;
             if(ZgcDefaults.onJvmExit(exitCode, ranMs, new File(Tools.DIR_GAME_HOME, "latestlog.txt"), BuildConfig.VERSION_NAME)) {
                 Logger.appendToLog("JVM: ZGC could not start on this device. The default garbage collector is used from the next launch.");
