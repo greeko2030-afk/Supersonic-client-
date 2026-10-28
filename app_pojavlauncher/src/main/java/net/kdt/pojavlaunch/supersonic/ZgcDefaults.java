@@ -17,18 +17,21 @@ import java.util.List;
 import java.util.regex.Pattern;
 
 /**
- * ZGC as the default garbage collector of the game.
+ * ZGC as the garbage collector of the game. It is experimental and it is OFF by default: ZGC needs a large address
+ * space and a way to map memory that many Android devices do not allow, and then the game stops at its start.
  *
  * <ul>
  *   <li>Java 17 gets {@code -XX:+UseZGC}. Java 21 also gets {@code -XX:+ZGenerational} (generational ZGC).
  *       Java 8 has no ZGC, so it keeps its default collector.</li>
  *   <li>A collector that the user chose in the Java arguments is never replaced: two collectors together
  *       make the JVM stop with "Multiple garbage collectors selected".</li>
- *   <li>The switch in the settings turns the default off.</li>
- *   <li>Safety: ZGC needs a large address space and a way to map memory that some Android devices do not allow.
- *       When the JVM stops right at the start with a message about its initialization, ZGC is not used any more
- *       and the default collector of Java is used instead. This lasts until the launcher is updated. A user who
- *       puts {@code -XX:+UseZGC} in the Java arguments gets ZGC anyway.</li>
+ *   <li>The switch in the settings turns it on.</li>
+ *   <li>Safety, for two ways of failing. (1) The JVM stops with a message about its initialization: the log is read.
+ *       (2) The whole process dies in a native crash, so no code can run any more: a marker is written before
+ *       the JVM starts and it is removed after the game ran for a while (or the JVM ended). A marker that is still
+ *       there at the next launch means that the last launch died, and ZGC is not used any more. This lasts until
+ *       the launcher is updated, or until the switch is turned off for one launch. A user who puts
+ *       {@code -XX:+UseZGC} in the Java arguments gets ZGC anyway.</li>
  * </ul>
  */
 public final class ZgcDefaults {
@@ -43,6 +46,8 @@ public final class ZgcDefaults {
     private static final int GENERATIONAL_JAVA_VERSION = 21;
     /** A JVM that stops after the start of the game within this time failed in its initialization. */
     private static final long STARTUP_WINDOW_MS = 30_000L;
+    /** The game counts as started when it is still alive after this time. (Not final: the tests make it short.) */
+    static long sStableAfterMs = 60_000L;
     private static final int LOG_TAIL_BYTES = 64 * 1024;
 
     /** Any collector flag: -XX:+UseG1GC, -XX:+UseParallelGC, -XX:+UseSerialGC, -XX:+UseZGC, -XX:+UseShenandoahGC ... */
@@ -64,13 +69,13 @@ public final class ZgcDefaults {
         }
     }
 
-    /** Is the ZGC default turned on in the settings? */
+    /** Is ZGC turned on in the settings? It is off by default. */
     public static boolean isEnabled() {
         try {
-            return LauncherPreferences.DEFAULT_PREF == null
-                    || LauncherPreferences.DEFAULT_PREF.getBoolean(PREF_KEY, true);
+            return LauncherPreferences.DEFAULT_PREF != null
+                    && LauncherPreferences.DEFAULT_PREF.getBoolean(PREF_KEY, false);
         } catch (ClassCastException e) {
-            return true;
+            return false;
         }
     }
 
@@ -80,7 +85,13 @@ public final class ZgcDefaults {
      * @param launcherVersion the version of the launcher, to end a block when the launcher is updated
      */
     public static Result decide(int javaVersion, List<String> userArguments, String launcherVersion) {
-        if (!isEnabled()) return none("it is turned off in the settings");
+        if (!isEnabled()) {
+            // Turned off: the markers of an earlier launch are not valid any more, so turning it on again
+            // gives ZGC a fresh start
+            attemptFile().delete();
+            blockedFile().delete();
+            return none("it is turned off in the settings");
+        }
         if (javaVersion < MIN_JAVA_VERSION) return none("Java " + javaVersion + " has no ZGC");
         for (String argument : userArguments) {
             if (COLLECTOR_FLAG.matcher(argument).matches()) {
@@ -88,8 +99,10 @@ public final class ZgcDefaults {
                 return none("the Java arguments already select a collector (" + argument + ")");
             }
         }
+        refreshGuard();
         if (isBlocked(launcherVersion)) {
-            return none("it did not start on this device before. Add -XX:+UseZGC to the Java arguments to try it again");
+            return none("the game stopped right after it started with ZGC last time. "
+                    + "Add -XX:+UseZGC to the Java arguments to try it again");
         }
 
         List<String> arguments = new ArrayList<>();
@@ -117,6 +130,42 @@ public final class ZgcDefaults {
         return new File(new File(Tools.DIR_DATA, "supersonic_engine"), "zgc_blocked");
     }
 
+    private static File attemptFile() {
+        return new File(new File(Tools.DIR_DATA, "supersonic_engine"), "zgc_attempt");
+    }
+
+    /**
+     * Call right before the JVM starts with ZGC. The marker is removed after the game ran for a while.
+     * When the process dies in a native crash first, the marker is still there at the next launch.
+     */
+    public static void armGuard(String launcherVersion) {
+        writeText(attemptFile(), launcherVersion);
+        Thread timer = new Thread(() -> {
+            try {
+                Thread.sleep(sStableAfterMs);
+            } catch (InterruptedException e) {
+                return;
+            }
+            markStable();
+        }, "supersonic-zgc-guard");
+        timer.setDaemon(true);
+        timer.start();
+    }
+
+    /** The game ran with ZGC for a while: remove the marker. */
+    public static void markStable() {
+        attemptFile().delete();
+    }
+
+    /** A marker from an earlier launch means that the process died before it was stable: block ZGC. */
+    private static void refreshGuard() {
+        File attempt = attemptFile();
+        if (attempt.exists()) {
+            writeText(blockedFile(), readText(attempt));
+            attempt.delete();
+        }
+    }
+
     /** True when ZGC did not start with this version of the launcher. A newer launcher tries it again. */
     static boolean isBlocked(String launcherVersion) {
         File file = blockedFile();
@@ -124,7 +173,8 @@ public final class ZgcDefaults {
     }
 
     /**
-     * Call when the JVM has stopped. When ZGC was used and the JVM stopped in its initialization, ZGC is blocked.
+     * Call when the JVM has stopped (and the process is still alive). When ZGC was used and the JVM stopped in
+     * its initialization, ZGC is blocked.
      *
      * @param exitCode        the exit code of the JVM
      * @param runtimeMs       how long the JVM ran
@@ -133,6 +183,8 @@ public final class ZgcDefaults {
      * @return true when ZGC was blocked
      */
     public static boolean onJvmExit(int exitCode, long runtimeMs, File logFile, String launcherVersion) {
+        // The JVM returned, so the process did not die in a crash. The marker is not needed any more.
+        markStable();
         if (exitCode == 0 || runtimeMs > STARTUP_WINDOW_MS) return false;
         if (!looksLikeStartFailure(tail(logFile))) return false;
         writeText(blockedFile(), launcherVersion);
