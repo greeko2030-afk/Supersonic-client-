@@ -6,10 +6,10 @@
 
     <PreferenceCategory android:title="@string/preference_category_miscellaneous">
         <SwitchPreference
-            android:defaultValue="true"
+            android:defaultValue="false"
             android:key="supersonic_zgc"
-            android:summary="Uses ZGC as the garbage collector on Java 17 and newer. A collector in the Java arguments is kept. If ZGC cannot start on this device, the default collector is used."
-            android:title="ZGC (Java 17+)" />
+            android:summary="Experimental. Uses ZGC as the garbage collector on Java 17 and newer. Many Android devices cannot run it and the game stops at its start. If that happens, ZGC is not used again."
+            android:title="ZGC (Java 17+, experimental)" />
         <SwitchPreference
             android:defaultValue="true"
             android:key="supersonic_repo_mods"
