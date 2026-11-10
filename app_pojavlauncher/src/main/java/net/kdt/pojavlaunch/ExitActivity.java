@@ -12,6 +12,8 @@ import androidx.annotation.Nullable;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 
+import net.kdt.pojavlaunch.supersonic.AgentFragment;
+
 @Keep
 public class ExitActivity extends AppCompatActivity {
 
@@ -32,8 +34,17 @@ public class ExitActivity extends AppCompatActivity {
         new AlertDialog.Builder(this)
                 .setMessage(getString(message,code))
                 .setPositiveButton(R.string.main_share_logs, (dialog, which) -> shareLog(this))
+                .setNeutralButton(R.string.supersonic_agent_crash_button, (dialog, which) -> openAgent())
                 .setOnDismissListener(dialog -> ExitActivity.this.finish())
                 .show();
+    }
+
+    /** Opens SS Agent in the launcher: it analyzes the crash, fixes what is safe and explains it with AI. */
+    private void openAgent() {
+        Intent intent = new Intent(this, LauncherActivity.class);
+        intent.putExtra(AgentFragment.ARG_CRASH, true);
+        intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK | Intent.FLAG_ACTIVITY_NEW_TASK);
+        startActivity(intent);
     }
 
     public static void showExitMessage(Context ctx, int code, boolean isSignal) {

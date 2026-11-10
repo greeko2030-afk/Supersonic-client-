@@ -40,6 +40,7 @@ import net.kdt.pojavlaunch.modloaders.modpacks.imagecache.IconCacheJanitor;
 import net.kdt.pojavlaunch.prefs.LauncherPreferences;
 import net.kdt.pojavlaunch.prefs.screens.LauncherPreferenceFragment;
 import net.kdt.pojavlaunch.supersonic.AddonsFragment;
+import net.kdt.pojavlaunch.supersonic.AgentFragment;
 import net.kdt.pojavlaunch.supersonic.ServersFragment;
 import net.kdt.pojavlaunch.supersonic.SupersonicSettingsFragment;
 import net.kdt.pojavlaunch.progresskeeper.ProgressKeeper;
@@ -191,6 +192,13 @@ public class LauncherActivity extends BaseActivity {
                     .setReorderingAllowed(true)
                     .addToBackStack("ROOT")
                     .add(R.id.container_fragment, MainMenuFragment.class, null, "ROOT").commit();
+        }
+
+        // Opened from the "game exited" dialog after a crash: let SS Agent analyze it right away
+        if(savedInstanceState == null && getIntent().getBooleanExtra(AgentFragment.ARG_CRASH, false)) {
+            Bundle agentArgs = new Bundle();
+            agentArgs.putBoolean(AgentFragment.ARG_CRASH, true);
+            Tools.swapFragment(this, AgentFragment.class, AgentFragment.TAG, agentArgs);
         }
 
 
