@@ -80,6 +80,19 @@ def getCFApiKey = {
     return "DUMMY";
 }
 
+// Groq key for SS Agent (AI). Optional: without it the user types their own key in SS Agent -> AI settings.
+// Anything compiled into an APK can be read out of it, so only build a key in for APKs that you do not share.
+def getGroqApiKey = {
+    String key = System.getenv("GROQ_API_KEY");
+    if(key != null && !key.trim().isEmpty()) return key.trim();
+    File groqKeyFile = new File("./groq_key.txt");
+    if(groqKeyFile.canRead() && groqKeyFile.isFile()) {
+        return groqKeyFile.text.trim();
+    }
+    logger.warn('BUILD: You have no Groq key, SS Agent (AI) will ask the user for one.');
+    return "DUMMY";
+}
+
 configurations {
     instrumentedClasspath {
         canBeConsumed = false
@@ -119,6 +132,7 @@ android {
         versionName getVersionName()
         multiDexEnabled true //important
         resValue 'string', 'curseforge_api_key', getCFApiKey()
+        resValue 'string', 'groq_api_key', getGroqApiKey()
     }
 
     buildTypes {
