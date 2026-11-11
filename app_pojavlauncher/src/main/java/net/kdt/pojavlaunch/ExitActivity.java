@@ -12,7 +12,7 @@ import androidx.annotation.Nullable;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 
-import net.kdt.pojavlaunch.supersonic.AgentFragment;
+import net.kdt.pojavlaunch.supersonic.AgentChatFragment;
 
 @Keep
 public class ExitActivity extends AppCompatActivity {
@@ -42,7 +42,7 @@ public class ExitActivity extends AppCompatActivity {
     /** Opens SS Agent in the launcher: it analyzes the crash, fixes what is safe and explains it with AI. */
     private void openAgent() {
         Intent intent = new Intent(this, LauncherActivity.class);
-        intent.putExtra(AgentFragment.ARG_CRASH, true);
+        intent.putExtra(AgentChatFragment.ARG_CRASH, true);
         intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK | Intent.FLAG_ACTIVITY_NEW_TASK);
         startActivity(intent);
     }
