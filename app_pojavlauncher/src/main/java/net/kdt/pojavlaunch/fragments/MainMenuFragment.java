@@ -33,6 +33,7 @@ import net.kdt.pojavlaunch.extra.ExtraCore;
 import net.kdt.pojavlaunch.modloaders.modpacks.imagecache.ModIconCache;
 import net.kdt.pojavlaunch.prefs.LauncherPreferences;
 import net.kdt.pojavlaunch.progresskeeper.ProgressKeeper;
+import net.kdt.pojavlaunch.supersonic.AgentChatFragment;
 import net.kdt.pojavlaunch.supersonic.AgentFragment;
 import net.kdt.pojavlaunch.supersonic.InstancesFragment;
 import net.kdt.pojavlaunch.supersonic.ModrinthClient;
@@ -130,13 +131,14 @@ public class MainMenuFragment extends Fragment {
 
         view.findViewById(R.id.home_quick_opt_manage).setOnClickListener(v -> openTab(SupersonicNavBar.TAB_ADDONS));
         view.findViewById(R.id.home_modpacks_browse).setOnClickListener(v -> openTab(SupersonicNavBar.TAB_MODPACKS));
-        View.OnClickListener openAgent = v -> {
+        // the card opens the AI chat; the button next to it runs a scan in the tools screen
+        view.findViewById(R.id.home_agent_scan).setOnClickListener(v -> {
             Bundle args = new Bundle();
             args.putBoolean(AgentFragment.ARG_SCAN, true);
             Tools.swapFragment(requireActivity(), AgentFragment.class, AgentFragment.TAG, args);
-        };
-        view.findViewById(R.id.home_agent_scan).setOnClickListener(openAgent);
-        view.findViewById(R.id.home_agent_card).setOnClickListener(openAgent);
+        });
+        view.findViewById(R.id.home_agent_card).setOnClickListener(v ->
+                Tools.swapFragment(requireActivity(), AgentChatFragment.class, AgentChatFragment.TAG, null));
         view.findViewById(R.id.home_lib_instances).setOnClickListener(v ->
                 Tools.swapFragment(requireActivity(), InstancesFragment.class, InstancesFragment.TAG, null));
         view.findViewById(R.id.home_lib_resource_packs).setOnClickListener(v ->
