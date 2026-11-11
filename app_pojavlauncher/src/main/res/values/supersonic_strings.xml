@@ -53,7 +53,7 @@
     <string name="supersonic_home_library">LIBRARY</string>
     <string name="supersonic_home_tools">TOOLS</string>
     <string name="supersonic_home_agent_title">SS Agent — AI Crash Assistant</string>
-    <string name="supersonic_home_agent_desc">On a crash it analyzes your log, finds missing mods, wrong versions and bad JVM settings, and fixes them.</string>
+    <string name="supersonic_home_agent_desc">Chat in any language. The AI reads your logs, mods and configs, fixes crashes and changes settings for you.</string>
     <string name="supersonic_home_scan_fix">Scan &amp; Fix</string>
     <string name="supersonic_install">Install</string>
     <string name="supersonic_installed">Installed</string>
@@ -76,7 +76,7 @@
     <string name="supersonic_resource_packs_title">RESOURCE PACKS</string>
     <string name="supersonic_resource_packs_subtitle">Manage packs of the selected instance</string>
     <string name="supersonic_agent_title">SS AGENT</string>
-    <string name="supersonic_agent_subtitle">AI crash assistant</string>
+    <string name="supersonic_agent_subtitle">AI assistant for Minecraft and the launcher</string>
     <string name="supersonic_agent_crash_button">SS Agent</string>
     <string name="supersonic_settings_title">SETTINGS</string>
     <string name="supersonic_settings_subtitle">Customize your experience.</string>
