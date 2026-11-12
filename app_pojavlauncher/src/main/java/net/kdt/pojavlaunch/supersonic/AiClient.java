@@ -18,6 +18,8 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * Blocking chat client with tool calling for the three request formats SS Agent supports:
@@ -29,6 +31,15 @@ public final class AiClient {
 
     private static final int MAX_RESPONSE_BYTES = 4 * 1024 * 1024;
     private static final AtomicInteger CALL_COUNTER = new AtomicInteger();
+
+    /** Told when a request has to wait because of a rate limit. */
+    public interface RateLimitListener {
+        /** @return false to give up instead of waiting */
+        boolean onWait(int seconds);
+    }
+
+    private static final int MAX_RATE_RETRIES = 4;
+    private static final int MAX_WAIT_SECONDS = 75;
 
     /** The message is written for the user and is safe to display. */
     public static final class AiException extends IOException {
@@ -44,6 +55,12 @@ public final class AiClient {
     /** Uses the provider, key, model and URL from AI settings. */
     public static AiChat.Reply chat(Context context, AiProvider provider, String system,
                                     List<AiChat.Msg> history, List<AiChat.ToolSpec> tools) throws IOException {
+        return chat(context, provider, system, history, tools, null);
+    }
+
+    public static AiChat.Reply chat(Context context, AiProvider provider, String system,
+                                    List<AiChat.Msg> history, List<AiChat.ToolSpec> tools,
+                                    RateLimitListener listener) throws IOException {
         String key = AiConfig.apiKey(context, provider);
         if (key.isEmpty() && !provider.keyOptional()) {
             throw new AiException(401, "No API key for " + provider.label + ". Add one in AI settings.");
@@ -52,25 +69,32 @@ public final class AiClient {
         if (url.isEmpty()) {
             throw new AiException(0, "No endpoint URL for " + provider.label + ". Set it in AI settings.");
         }
-        return chat(provider, url, key, AiConfig.model(context, provider), system, history, tools);
+        return chat(provider, url, key, AiConfig.model(context, provider), system, history, tools, listener);
     }
 
     public static AiChat.Reply chat(AiProvider provider, String url, String key, String model, String system,
                                     List<AiChat.Msg> history, List<AiChat.ToolSpec> tools) throws IOException {
+        return chat(provider, url, key, model, system, history, tools, null);
+    }
+
+    public static AiChat.Reply chat(AiProvider provider, String url, String key, String model, String system,
+                                    List<AiChat.Msg> history, List<AiChat.ToolSpec> tools,
+                                    RateLimitListener listener) throws IOException {
         switch (provider.protocol) {
             case ANTHROPIC:
-                return anthropic(provider, url, key, model, system, history, tools);
+                return anthropic(provider, url, key, model, system, history, tools, listener);
             case GEMINI:
-                return gemini(url, key, model, system, history, tools);
+                return gemini(url, key, model, system, history, tools, listener);
             default:
-                return openAi(provider, url, key, model, system, history, tools);
+                return openAi(provider, url, key, model, system, history, tools, listener);
         }
     }
 
     // ------------------------------------------------------------------ OpenAI compatible
 
     private static AiChat.Reply openAi(AiProvider provider, String url, String key, String model, String system,
-                                       List<AiChat.Msg> history, List<AiChat.ToolSpec> tools) throws IOException {
+                                       List<AiChat.Msg> history, List<AiChat.ToolSpec> tools,
+                                       RateLimitListener listener) throws IOException {
         String endpoint = url.trim();
         while (endpoint.endsWith("/")) endpoint = endpoint.substring(0, endpoint.length() - 1);
         if (!endpoint.endsWith("/chat/completions")) endpoint += "/chat/completions";
@@ -133,14 +157,14 @@ public final class AiClient {
         if (provider == AiProvider.OPENAI) {
             body.addProperty("max_completion_tokens", 4096); // newer OpenAI models reject max_tokens
         } else {
-            body.addProperty("max_tokens", 2048);
+            body.addProperty("max_tokens", 1500);
             body.addProperty("temperature", 0.3);
         }
 
         String[][] headers = key.isEmpty()
                 ? new String[0][]
                 : new String[][]{{"Authorization", "Bearer " + key}};
-        JsonObject root = parseObject(post(endpoint, headers, body));
+        JsonObject root = parseObject(post(endpoint, headers, body, listener));
 
         JsonArray choices = root.has("choices") && root.get("choices").isJsonArray() ? root.getAsJsonArray("choices") : null;
         if (choices == null || choices.size() == 0 || !choices.get(0).isJsonObject()) {
@@ -189,7 +213,8 @@ public final class AiClient {
     // ------------------------------------------------------------------ Anthropic (Claude)
 
     private static AiChat.Reply anthropic(AiProvider provider, String url, String key, String model, String system,
-                                          List<AiChat.Msg> history, List<AiChat.ToolSpec> tools) throws IOException {
+                                          List<AiChat.Msg> history, List<AiChat.ToolSpec> tools,
+                                          RateLimitListener listener) throws IOException {
         JsonObject body = new JsonObject();
         body.addProperty("model", model);
         body.addProperty("max_tokens", 4096);
@@ -244,7 +269,7 @@ public final class AiClient {
         }
 
         String[][] headers = {{"x-api-key", key}, {"anthropic-version", "2023-06-01"}};
-        JsonObject root = parseObject(post(url.trim(), headers, body));
+        JsonObject root = parseObject(post(url.trim(), headers, body, listener));
 
         StringBuilder text = new StringBuilder();
         List<AiChat.ToolCall> calls = new ArrayList<>();
@@ -281,7 +306,8 @@ public final class AiClient {
     // ------------------------------------------------------------------ Google Gemini
 
     private static AiChat.Reply gemini(String url, String key, String model, String system,
-                                       List<AiChat.Msg> history, List<AiChat.ToolSpec> tools) throws IOException {
+                                       List<AiChat.Msg> history, List<AiChat.ToolSpec> tools,
+                                       RateLimitListener listener) throws IOException {
         String endpoint = url.trim();
         if (!endpoint.contains(":generateContent")) {
             if (!endpoint.endsWith("/")) endpoint += "/";
@@ -361,7 +387,7 @@ public final class AiClient {
         config.addProperty("maxOutputTokens", 4096);
         body.add("generationConfig", config);
 
-        JsonObject root = parseObject(post(endpoint, new String[][]{{"x-goog-api-key", key}}, body));
+        JsonObject root = parseObject(post(endpoint, new String[][]{{"x-goog-api-key", key}}, body, listener));
 
         JsonArray candidates = root.has("candidates") && root.get("candidates").isJsonArray()
                 ? root.getAsJsonArray("candidates") : null;
@@ -441,10 +467,14 @@ public final class AiClient {
         throw new IOException("The AI service sent an unreadable reply");
     }
 
-    private static String post(String url, String[][] headers, JsonObject body) throws IOException {
+    private static String post(String url, String[][] headers, JsonObject body, RateLimitListener listener)
+            throws IOException {
         byte[] payload = body.toString().getBytes(StandardCharsets.UTF_8);
-        for (int attempt = 0; ; attempt++) {
+        int rateRetries = 0;
+        int serverRetries = 0;
+        while (true) {
             HttpURLConnection connection = (HttpURLConnection) new URL(url).openConnection();
+            int wait = 0;
             try {
                 connection.setRequestMethod("POST");
                 connection.setConnectTimeout(15_000);
@@ -463,23 +493,75 @@ public final class AiClient {
                 String text = stream == null ? "" : readAll(stream);
                 if (code < 400) return text;
 
-                if (code == 429 && attempt == 0) {
-                    int wait = retryAfterSeconds(connection);
-                    if (wait > 0 && wait <= 20) {
-                        try {
-                            Thread.sleep(wait * 1000L);
-                        } catch (InterruptedException e) {
-                            Thread.currentThread().interrupt();
-                            throw new IOException("Interrupted");
-                        }
-                        continue;
+                if (code == 429 && rateRetries < MAX_RATE_RETRIES) {
+                    int seconds = rateLimitWaitSeconds(connection, text);
+                    if (seconds > MAX_WAIT_SECONDS) {
+                        String detail = detailOf(text);
+                        throw new AiException(429, "The limit of this AI plan is used up for now. It resets in about "
+                                + Math.max(1, (seconds + 59) / 60) + " min. Wait, or switch to another model or provider in AI settings."
+                                + (detail.isEmpty() ? "" : "\n" + detail));
                     }
+                    wait = seconds > 0 ? seconds : 5 * (rateRetries + 1);
+                    rateRetries++;
+                    if (listener != null && !listener.onWait(wait)) throw new IOException("Stopped");
+                } else if ((code == 502 || code == 503 || code == 529) && serverRetries < 2) {
+                    serverRetries++;
+                    wait = 2 * serverRetries;
+                } else {
+                    throw new AiException(code, describeError(code, text));
                 }
-                throw new AiException(code, describeError(code, text));
             } finally {
                 connection.disconnect();
             }
+            try {
+                Thread.sleep(wait * 1000L);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new IOException("Interrupted");
+            }
         }
+    }
+
+    /**
+     * How long to wait before the request may be sent again, in seconds (with a small safety margin).
+     * Reads the Retry-After header, or the "try again in 1m5.2s" sentence of Groq / OpenAI style errors.
+     * 0 if unknown.
+     */
+    static int rateLimitWaitSeconds(HttpURLConnection connection, String json) {
+        int header = connection == null ? 0 : retryAfterSeconds(connection);
+        if (header > 0) return header + 1;
+        String message = detailOf(json);
+        int index = message.toLowerCase(java.util.Locale.ROOT).indexOf("try again in ");
+        if (index < 0) return 0;
+        Matcher matcher = Pattern.compile("\\G(\\d+(?:\\.\\d+)?)(ms|h|m|s)")
+                .matcher(message).region(index + "try again in ".length(), message.length());
+        double millis = 0;
+        boolean found = false;
+        while (matcher.find()) {
+            found = true;
+            double value = Double.parseDouble(matcher.group(1));
+            switch (matcher.group(2)) {
+                case "h": millis += value * 3_600_000; break;
+                case "m": millis += value * 60_000; break;
+                case "s": millis += value * 1000; break;
+                default: millis += value;
+            }
+        }
+        return found ? (int) Math.ceil(millis / 1000.0) + 1 : 0;
+    }
+
+    private static String detailOf(String json) {
+        try {
+            JsonObject root = new JsonParser().parse(json).getAsJsonObject();
+            if (root.has("error")) {
+                JsonElement error = root.get("error");
+                if (error.isJsonObject() && error.getAsJsonObject().has("message")) {
+                    return error.getAsJsonObject().get("message").getAsString();
+                }
+                if (error.isJsonPrimitive()) return error.getAsString();
+            }
+        } catch (JsonParseException | IllegalStateException | ClassCastException ignored) { }
+        return "";
     }
 
     private static int retryAfterSeconds(HttpURLConnection connection) {

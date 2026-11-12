@@ -52,7 +52,7 @@ public final class AgentTools {
         private static final long serialVersionUID = 1L;
     }
 
-    private static final int MAX_RESULT_CHARS = 6000;
+    private static final int MAX_RESULT_CHARS = 3500;
     private static final int MAX_FILE_READ_BYTES = 2 * 1024 * 1024;
     private static final int MAX_WRITE_CHARS = 1_000_000;
 
@@ -69,85 +69,58 @@ public final class AgentTools {
     public static List<AiChat.ToolSpec> specs() {
         List<AiChat.ToolSpec> tools = new ArrayList<>();
 
-        tools.add(tool("get_environment",
-                "Phone, RAM, launcher settings, the selected Minecraft instance (version, loader, mods, JVM arguments) "
-                        + "and the folders you can use. Call this first.",
-                schema()));
+        tools.add(tool("get_environment", "Phone, RAM, settings, selected instance, folders. Call first.", schema()));
         tools.add(tool("diagnose",
-                "Runs the built in checks: RAM, storage, mods that do not fit the game version, missing mods, "
-                        + "bad JVM arguments, and known crash patterns in the last log. Cheap and offline.",
+                "Offline checks: RAM, storage, mods vs game version, missing mods, bad JVM args, crash patterns.",
                 schema()));
         tools.add(tool("read_log",
-                "Reads the game log. source: latest_log (default, starts at the last error), latest_log_tail "
-                        + "(just the end of the log) or crash_report (newest file in crash-reports).",
-                schema(new String[0], "source", enumProp("latest_log, latest_log_tail or crash_report",
-                        "latest_log", "latest_log_tail", "crash_report"))));
-        tools.add(tool("list_dir",
-                "Lists a folder. Relative paths start in the Minecraft folder. Empty path = the Minecraft folder.",
-                schema(new String[0], "path", prop("string", "Folder path"))));
-        tools.add(tool("read_file",
-                "Reads a text file (config, options.txt, launcher_profiles.json, mod configs, logs). "
-                        + "Large files are cut; use offset to continue.",
+                "Game log. latest_log (default) starts at the last error; or latest_log_tail, crash_report.",
+                schema(new String[0], "source", enumProp("Log source", "latest_log", "latest_log_tail", "crash_report"))));
+        tools.add(tool("list_dir", "List a folder. Relative paths start in the Minecraft folder.",
+                schema(new String[0], "path", prop("string", "Folder, default Minecraft folder"))));
+        tools.add(tool("read_file", "Read a text file. Long files are cut; continue with offset.",
                 schema(new String[]{"path"},
-                        "path", prop("string", "File path"),
-                        "offset", prop("integer", "Characters to skip, default 0"),
-                        "max_chars", prop("integer", "Maximum characters to return, default 8000"))));
-        tools.add(tool("search_files",
-                "Searches text files under a folder for a text (case-insensitive), like grep.",
+                        "path", prop("string", "File"),
+                        "offset", prop("integer", "Characters to skip"),
+                        "max_chars", prop("integer", "Default 4000"))));
+        tools.add(tool("search_files", "Find text in files under a folder (case-insensitive).",
                 schema(new String[]{"query"},
-                        "path", prop("string", "Folder to search, default the Minecraft folder"),
-                        "query", prop("string", "Text to find"),
+                        "path", prop("string", "Folder, default Minecraft folder"),
+                        "query", prop("string", "Text"),
                         "max_results", prop("integer", "Default 30"))));
-        tools.add(tool("list_mods",
-                "Lists the mods of the selected instance: on/off, id, version and whether each one fits the "
-                        + "instance's Minecraft version and loader.",
+        tools.add(tool("list_mods", "Mods of the selected instance: on/off, id, version, fits the game version or not.",
                 schema()));
-        tools.add(tool("search_modrinth",
-                "Searches Modrinth for mods that fit the selected instance.",
+        tools.add(tool("search_modrinth", "Search Modrinth for mods that fit the instance.",
                 schema(new String[]{"query"}, "query", prop("string", "Search text"))));
-        tools.add(tool("list_settings",
-                "Lists the launcher settings (renderer, RAM, resolution scale, controls...) with their current values.",
-                schema()));
+        tools.add(tool("list_settings", "Launcher settings and their values.", schema()));
 
-        tools.add(tool("write_file",
-                "Creates or overwrites a text file. The old content is backed up. Prefer edit_file for small changes. "
-                        + "JSON files are checked before they are written.",
+        tools.add(tool("write_file", "Create or overwrite a text file (backed up, JSON checked). Prefer edit_file.",
                 schema(new String[]{"path", "content"},
-                        "path", prop("string", "File path"),
-                        "content", prop("string", "Complete new content of the file"))));
-        tools.add(tool("edit_file",
-                "Replaces text in a file. old_str must match the file exactly (read the file first) and must be "
-                        + "unique unless replace_all is true.",
+                        "path", prop("string", "File"),
+                        "content", prop("string", "Full new content"))));
+        tools.add(tool("edit_file", "Replace exact text in a file. Read it first. old_str must be unique unless replace_all.",
                 schema(new String[]{"path", "old_str", "new_str"},
-                        "path", prop("string", "File path"),
-                        "old_str", prop("string", "Exact text to replace"),
-                        "new_str", prop("string", "Replacement text (empty to delete)"),
-                        "replace_all", prop("boolean", "Replace every occurrence, default false"))));
-        tools.add(tool("delete_path",
-                "Deletes a file or folder (backed up first, up to 100 MB).",
-                schema(new String[]{"path"}, "path", prop("string", "Path to delete"))));
-        tools.add(tool("set_mod_enabled",
-                "Turns a mod of the selected instance on or off by renaming it (.jar <-> .jar.disabled).",
+                        "path", prop("string", "File"),
+                        "old_str", prop("string", "Exact text"),
+                        "new_str", prop("string", "Replacement"),
+                        "replace_all", prop("boolean", "Default false"))));
+        tools.add(tool("delete_path", "Delete a file or folder (backed up).",
+                schema(new String[]{"path"}, "path", prop("string", "Path"))));
+        tools.add(tool("set_mod_enabled", "Turn a mod on or off (.jar <-> .jar.disabled).",
                 schema(new String[]{"file_name", "enabled"},
-                        "file_name", prop("string", "Mod file name as shown by list_mods"),
-                        "enabled", prop("boolean", "true = on, false = off"))));
-        tools.add(tool("install_mod",
-                "Downloads a mod and its required dependencies from Modrinth into the selected instance.",
-                schema(new String[]{"project"}, "project", prop("string", "Modrinth slug or id, e.g. fabric-api"))));
-        tools.add(tool("set_setting",
-                "Changes one launcher setting. Use list_settings for the keys. The value keeps the setting's type.",
+                        "file_name", prop("string", "Name from list_mods"),
+                        "enabled", prop("boolean", "true = on"))));
+        tools.add(tool("install_mod", "Install a mod and its dependencies from Modrinth.",
+                schema(new String[]{"project"}, "project", prop("string", "Slug, e.g. fabric-api"))));
+        tools.add(tool("set_setting", "Change a launcher setting (keys from list_settings).",
                 schema(new String[]{"key", "value"},
-                        "key", prop("string", "Setting key"),
-                        "value", prop("string", "New value, e.g. true, 3072, opengles2"))));
-        tools.add(tool("set_jvm_argument",
-                "Adds, enables, disables or removes one JVM argument, e.g. -XX:+UseG1GC.",
+                        "key", prop("string", "Key"),
+                        "value", prop("string", "New value"))));
+        tools.add(tool("set_jvm_argument", "Add, enable, disable or remove a JVM argument.",
                 schema(new String[]{"argument", "action"},
-                        "argument", prop("string", "The JVM argument"),
-                        "action", enumProp("add, enable, disable or remove", "add", "enable", "disable", "remove"))));
-        tools.add(tool("apply_safe_fixes",
-                "Runs the automatic fixes found by diagnose that are safe and undoable (turn off mods that do not "
-                        + "fit, install missing mods, turn off bad JVM arguments, pick safe RAM).",
-                schema()));
+                        "argument", prop("string", "e.g. -XX:+UseG1GC"),
+                        "action", enumProp("Action", "add", "enable", "disable", "remove"))));
+        tools.add(tool("apply_safe_fixes", "Run the safe, undoable automatic fixes found by diagnose.", schema()));
         return tools;
     }
 
@@ -231,7 +204,7 @@ public final class AgentTools {
             case "list_dir":
                 return listDir(str(args, "path", ""));
             case "read_file":
-                return readFile(requireStr(args, "path"), num(args, "offset", 0), num(args, "max_chars", 8000));
+                return readFile(requireStr(args, "path"), num(args, "offset", 0), num(args, "max_chars", 4000));
             case "search_files":
                 return searchFiles(str(args, "path", ""), requireStr(args, "query"), num(args, "max_results", 30));
             case "list_mods":
@@ -365,8 +338,8 @@ public final class AgentTools {
         StringBuilder out = new StringBuilder(dir.getPath()).append(" (").append(children.length).append(" entries)\n");
         int shown = 0;
         for (File child : children) {
-            if (shown++ >= 200) {
-                out.append("... ").append(children.length - 200).append(" more\n");
+            if (shown++ >= 120) {
+                out.append("... ").append(children.length - 120).append(" more\n");
                 break;
             }
             if (isProtected(child.getCanonicalFile())) continue;
@@ -379,7 +352,7 @@ public final class AgentTools {
     private String readFile(String path, int offset, int maxChars) throws IOException {
         File file = resolve(path);
         if (!file.isFile()) throw new IOException(file.getPath() + " is not a file");
-        int limit = Math.max(200, Math.min(maxChars, 12000));
+        int limit = Math.max(200, Math.min(maxChars, 8000));
         String text = readText(file, Math.max(0, offset), limit);
         if (text == null) return file.getName() + " is a binary file (" + SupersonicUi.formatBytes(file.length()) + "), it cannot be read as text.";
         String note = "";
@@ -455,7 +428,7 @@ public final class AgentTools {
             String name = file.getName();
             boolean on = name.endsWith(".jar");
             if (!on && !name.endsWith(".jar.disabled")) continue;
-            if (shown++ >= 120) {
+            if (shown++ >= 80) {
                 out.append("... more\n");
                 break;
             }

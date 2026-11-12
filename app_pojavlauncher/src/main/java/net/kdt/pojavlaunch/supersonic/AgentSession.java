@@ -45,7 +45,7 @@ public final class AgentSession {
 
     private static final int MAX_STEPS = 16;
     private static final int MAX_HISTORY = 40;
-    private static final int OLD_RESULT_CHARS = 500;
+    private static final int OLD_RESULT_CHARS = 300;
 
     private static final AgentSession INSTANCE = new AgentSession();
 
@@ -131,7 +131,10 @@ public final class AgentSession {
 
             for (int step = 0; step < MAX_STEPS && !cancelled; step++) {
                 List<AiChat.Msg> snapshot = prepareHistory();
-                AiChat.Reply reply = AiClient.chat(app, provider, AgentAi.systemPrompt(app), snapshot, specs);
+                AiChat.Reply reply = AiClient.chat(app, provider, AgentAi.systemPrompt(app), snapshot, specs, seconds -> {
+                    add(NOTE, "Rate limit reached. Waiting " + seconds + "s, then continuing automatically…");
+                    return !cancelled;
+                });
                 if (cancelled) break;
 
                 synchronized (history) {
@@ -176,7 +179,7 @@ public final class AgentSession {
     /** Keeps the conversation small: old tool results are shortened and the oldest messages are dropped. */
     private List<AiChat.Msg> prepareHistory() {
         synchronized (history) {
-            int keepFrom = Math.max(0, history.size() - 8);
+            int keepFrom = Math.max(0, history.size() - 6);
             for (int i = 0; i < keepFrom; i++) {
                 AiChat.Msg m = history.get(i);
                 if (AiChat.TOOL.equals(m.role) && m.text.length() > OLD_RESULT_CHARS) {
