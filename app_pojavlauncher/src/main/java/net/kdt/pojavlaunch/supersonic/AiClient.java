@@ -564,6 +564,26 @@ public final class AiClient {
         return "";
     }
 
+    /** Plain GET (used to list the models of a provider). */
+    static String get(String url, String[][] headers) throws IOException {
+        HttpURLConnection connection = (HttpURLConnection) new URL(url).openConnection();
+        try {
+            connection.setRequestMethod("GET");
+            connection.setConnectTimeout(15_000);
+            connection.setReadTimeout(30_000);
+            connection.setRequestProperty("Accept", "application/json");
+            connection.setRequestProperty("User-Agent", "SupersonicClient/1.0 (Android)");
+            for (String[] header : headers) connection.setRequestProperty(header[0], header[1]);
+            int code = connection.getResponseCode();
+            InputStream stream = code >= 400 ? connection.getErrorStream() : connection.getInputStream();
+            String text = stream == null ? "" : readAll(stream);
+            if (code >= 400) throw new AiException(code, describeError(code, text));
+            return text;
+        } finally {
+            connection.disconnect();
+        }
+    }
+
     private static int retryAfterSeconds(HttpURLConnection connection) {
         String value = connection.getHeaderField("retry-after");
         if (value == null) return 0;
@@ -608,7 +628,7 @@ public final class AiClient {
             case 403:
                 return "The request was refused (403). The key may be disabled, or not allowed in your region." + suffix;
             case 404:
-                return "The model or endpoint was not found (404). Change the model in AI settings." + suffix;
+                return "The model or endpoint was not found (404). Open AI settings and tap \"Choose model\" to see the models your key can use." + suffix;
             case 413:
                 return "The request was too large for this model (413). Start a new chat." + suffix;
             case 429:
