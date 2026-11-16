@@ -86,6 +86,19 @@ public final class AgentSettingsDialog {
         modelStatus.setTextSize(12);
         box.addView(modelStatus);
 
+        final TextView effortInfo = new TextView(context);
+        effortInfo.setTextSize(12);
+        effortInfo.setText("Effort: how hard the AI thinks before it answers. Low is faster and uses fewer tokens, "
+                + "which helps on free plans. High is more careful. Models without an effort setting ignore it.");
+        box.addView(effortInfo);
+        final String[] effortLabels = {
+                "Effort: Auto (model default)", "Effort: Low (fast, fewer tokens)",
+                "Effort: Medium", "Effort: High (careful, more tokens)"};
+        final String[] effortValues = {"", "low", "medium", "high"};
+        final Spinner effort = new Spinner(context);
+        effort.setAdapter(new ArrayAdapter<>(context, android.R.layout.simple_spinner_dropdown_item, effortLabels));
+        box.addView(effort);
+
         final TextView link = new TextView(context);
         link.setTextIsSelectable(true);
         box.addView(link);
@@ -199,6 +212,10 @@ public final class AgentSettingsDialog {
             url.setVisibility(custom ? View.VISIBLE : View.GONE);
             url.setHint("Endpoint, e.g. https://host/v1/chat/completions");
             url.setText(custom ? AiConfig.baseUrl(ctx, provider) : "");
+            String savedEffort = AiConfig.effort(ctx, provider);
+            int effortIndex = 0;
+            for (int i = 0; i < effortValues.length; i++) if (effortValues[i].equals(savedEffort)) effortIndex = i;
+            effort.setSelection(effortIndex);
             link.setText(provider.keyUrl.isEmpty() ? "" : "Get a key: " + provider.keyUrl);
             if (found.containsKey(provider)) showModelStatus.run();
             else detect[0].run();
@@ -234,6 +251,7 @@ public final class AgentSettingsDialog {
                     String typed = key.getText().toString().trim();
                     if (!typed.isEmpty()) AiConfig.saveKey(ctx, provider, typed);
                     AiConfig.saveModel(ctx, provider, model.getText().toString());
+                    AiConfig.saveEffort(ctx, provider, effortValues[Math.max(0, effort.getSelectedItemPosition())]);
                     if (provider == AiProvider.CUSTOM) AiConfig.saveBaseUrl(ctx, provider, url.getText().toString());
                     AiConfig.setAutoFix(ctx, autoFix.isChecked());
                     AiConfig.setAutoApprove(ctx, autoApprove.isChecked());
@@ -307,4 +325,4 @@ public final class AgentSettingsDialog {
     private static String rowText(AiModels.ModelInfo model, String current) {
         return (model.id.equals(current) ? "✓ " : "") + model.display();
     }
-                                }
+}

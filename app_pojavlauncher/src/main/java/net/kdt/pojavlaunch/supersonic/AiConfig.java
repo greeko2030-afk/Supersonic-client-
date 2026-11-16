@@ -20,6 +20,7 @@ public final class AiConfig {
     private static final String PREF_KEY = "ss_ai_key_";
     private static final String PREF_MODEL = "ss_ai_model_";
     private static final String PREF_URL = "ss_ai_url_";
+    private static final String PREF_EFFORT = "ss_ai_effort_";
     private static final String PREF_CONSENT = "ss_ai_consent";
     private static final String PREF_AUTOFIX = "ss_ai_autofix";
     private static final String PREF_AUTO_APPROVE = "ss_ai_auto_approve";
@@ -90,6 +91,19 @@ public final class AiConfig {
 
     public static void saveBaseUrl(Context context, AiProvider provider, String url) {
         prefs(context).edit().putString(PREF_URL + provider.id, url == null ? "" : url.trim()).apply();
+    }
+
+    /**
+     * How hard the AI should think: "low", "medium" or "high". Empty means automatic: nothing is sent and the
+     * model uses its own default. Only models that have such a setting use it.
+     */
+    public static String effort(Context context, AiProvider provider) {
+        String value = prefs(context).getString(PREF_EFFORT + provider.id, "");
+        return "low".equals(value) || "medium".equals(value) || "high".equals(value) ? value : "";
+    }
+
+    public static void saveEffort(Context context, AiProvider provider, String effort) {
+        prefs(context).edit().putString(PREF_EFFORT + provider.id, effort == null ? "" : effort.trim()).apply();
     }
 
     public static boolean hasConsent(Context context) {

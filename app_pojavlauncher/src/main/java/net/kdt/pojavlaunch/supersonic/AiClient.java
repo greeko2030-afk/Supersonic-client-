@@ -30,6 +30,11 @@ public final class AiClient {
     private AiClient() {}
 
     private static final int MAX_RESPONSE_BYTES = 4 * 1024 * 1024;
+    /** Longest answer (thinking included) that is asked for. Small on purpose: low credit plans reject big values. */
+    static final int MAX_OUTPUT_TOKENS = 1024;
+    /** provider|model|effort combinations that the model refused once, so they are not sent again. */
+    private static final java.util.Set<String> EFFORT_REJECTED =
+            java.util.Collections.synchronizedSet(new java.util.HashSet<String>());
     private static final AtomicInteger CALL_COUNTER = new AtomicInteger();
 
     /** Told when a request has to wait because of a rate limit. */
@@ -69,7 +74,8 @@ public final class AiClient {
         if (url.isEmpty()) {
             throw new AiException(0, "No endpoint URL for " + provider.label + ". Set it in AI settings.");
         }
-        return chat(provider, url, key, AiConfig.model(context, provider), system, history, tools, listener);
+        return chat(provider, url, key, AiConfig.model(context, provider), AiConfig.effort(context, provider),
+                system, history, tools, listener);
     }
 
     public static AiChat.Reply chat(AiProvider provider, String url, String key, String model, String system,
@@ -80,19 +86,54 @@ public final class AiClient {
     public static AiChat.Reply chat(AiProvider provider, String url, String key, String model, String system,
                                     List<AiChat.Msg> history, List<AiChat.ToolSpec> tools,
                                     RateLimitListener listener) throws IOException {
+        return chat(provider, url, key, model, "", system, history, tools, listener);
+    }
+
+    /**
+     * @param effort "low", "medium", "high" or empty for the model's default. If the model has no such
+     *               setting and answers 400, the request is repeated without it, and not tried again.
+     */
+    public static AiChat.Reply chat(AiProvider provider, String url, String key, String model, String effort,
+                                    String system, List<AiChat.Msg> history, List<AiChat.ToolSpec> tools,
+                                    RateLimitListener listener) throws IOException {
+        String level = effort == null ? "" : effort.trim().toLowerCase(java.util.Locale.ROOT);
+        if (!level.equals("low") && !level.equals("medium") && !level.equals("high")) level = "";
+        String memo = provider.id + "|" + model + "|" + level;
+        if (!level.isEmpty() && EFFORT_REJECTED.contains(memo)) level = "";
+        try {
+            return send(provider, url, key, model, level, system, history, tools, listener);
+        } catch (AiException e) {
+            if (!level.isEmpty() && e.httpCode == 400 && mentionsEffort(e.getMessage())) {
+                EFFORT_REJECTED.add(memo);
+                return send(provider, url, key, model, "", system, history, tools, listener);
+            }
+            throw e;
+        }
+    }
+
+    private static boolean mentionsEffort(String message) {
+        String text = message == null ? "" : message.toLowerCase(java.util.Locale.ROOT);
+        return text.contains("effort") || text.contains("reasoning") || text.contains("thinking")
+                || text.contains("output_config");
+    }
+
+    private static AiChat.Reply send(AiProvider provider, String url, String key, String model, String effort,
+                                     String system, List<AiChat.Msg> history, List<AiChat.ToolSpec> tools,
+                                     RateLimitListener listener) throws IOException {
         switch (provider.protocol) {
             case ANTHROPIC:
-                return anthropic(provider, url, key, model, system, history, tools, listener);
+                return anthropic(provider, url, key, model, effort, system, history, tools, listener);
             case GEMINI:
-                return gemini(url, key, model, system, history, tools, listener);
+                return gemini(url, key, model, effort, system, history, tools, listener);
             default:
-                return openAi(provider, url, key, model, system, history, tools, listener);
+                return openAi(provider, url, key, model, effort, system, history, tools, listener);
         }
     }
 
     // ------------------------------------------------------------------ OpenAI compatible
 
-    private static AiChat.Reply openAi(AiProvider provider, String url, String key, String model, String system,
+    private static AiChat.Reply openAi(AiProvider provider, String url, String key, String model, String effort,
+                                       String system,
                                        List<AiChat.Msg> history, List<AiChat.ToolSpec> tools,
                                        RateLimitListener listener) throws IOException {
         String endpoint = url.trim();
@@ -154,10 +195,19 @@ public final class AiClient {
             }
             body.add("tools", array);
         }
+        if (!effort.isEmpty()) {
+            if (provider == AiProvider.OPENROUTER) {
+                JsonObject reasoning = new JsonObject();
+                reasoning.addProperty("effort", effort);
+                body.add("reasoning", reasoning);
+            } else {
+                body.addProperty("reasoning_effort", effort);
+            }
+        }
         if (provider == AiProvider.OPENAI) {
-            body.addProperty("max_completion_tokens", 4096); // newer OpenAI models reject max_tokens
+            body.addProperty("max_completion_tokens", MAX_OUTPUT_TOKENS); // newer OpenAI models reject max_tokens
         } else {
-            body.addProperty("max_tokens", 1500);
+            body.addProperty("max_tokens", MAX_OUTPUT_TOKENS);
             body.addProperty("temperature", 0.3);
         }
 
@@ -200,7 +250,12 @@ public final class AiClient {
                         parseArgs(function.get("arguments")), null));
             }
         }
-        return finish(text.toString(), calls);
+        return finish(text.toString(), calls, "length".equals(text(first, "finish_reason")));
+    }
+
+    private static String text(JsonObject object, String key) {
+        JsonElement element = object.get(key);
+        return element != null && element.isJsonPrimitive() ? element.getAsString() : "";
     }
 
     private static JsonObject message(String role, String content) {
@@ -212,12 +267,13 @@ public final class AiClient {
 
     // ------------------------------------------------------------------ Anthropic (Claude)
 
-    private static AiChat.Reply anthropic(AiProvider provider, String url, String key, String model, String system,
+    private static AiChat.Reply anthropic(AiProvider provider, String url, String key, String model, String effort,
+                                          String system,
                                           List<AiChat.Msg> history, List<AiChat.ToolSpec> tools,
                                           RateLimitListener listener) throws IOException {
         JsonObject body = new JsonObject();
         body.addProperty("model", model);
-        body.addProperty("max_tokens", 4096);
+        body.addProperty("max_tokens", MAX_OUTPUT_TOKENS);
         if (system != null && !system.isEmpty()) body.addProperty("system", system);
 
         JsonArray messages = new JsonArray();
@@ -255,6 +311,11 @@ public final class AiClient {
         }
         if (pendingResults != null) messages.add(roleWithBlocks("user", pendingResults));
         body.add("messages", messages);
+        if (!effort.isEmpty()) {
+            JsonObject outputConfig = new JsonObject();
+            outputConfig.addProperty("effort", effort);
+            body.add("output_config", outputConfig);
+        }
 
         if (!tools.isEmpty()) {
             JsonArray array = new JsonArray();
@@ -286,7 +347,7 @@ public final class AiClient {
                 }
             }
         }
-        return finish(text.toString(), calls);
+        return finish(text.toString(), calls, "max_tokens".equals(text(root, "stop_reason")));
     }
 
     private static JsonObject roleWithBlocks(String role, JsonArray blocks) {
@@ -305,7 +366,7 @@ public final class AiClient {
 
     // ------------------------------------------------------------------ Google Gemini
 
-    private static AiChat.Reply gemini(String url, String key, String model, String system,
+    private static AiChat.Reply gemini(String url, String key, String model, String effort, String system,
                                        List<AiChat.Msg> history, List<AiChat.ToolSpec> tools,
                                        RateLimitListener listener) throws IOException {
         String endpoint = url.trim();
@@ -384,7 +445,12 @@ public final class AiClient {
             body.add("tools", array);
         }
         JsonObject config = new JsonObject();
-        config.addProperty("maxOutputTokens", 4096);
+        config.addProperty("maxOutputTokens", MAX_OUTPUT_TOKENS);
+        if (!effort.isEmpty()) {
+            JsonObject thinking = new JsonObject();
+            thinking.addProperty("thinkingLevel", effort);
+            config.add("thinkingConfig", thinking);
+        }
         body.add("generationConfig", config);
 
         JsonObject root = parseObject(post(endpoint, new String[][]{{"x-goog-api-key", key}}, body, listener));
@@ -418,7 +484,7 @@ public final class AiClient {
                 }
             }
         }
-        return finish(text.toString(), calls);
+        return finish(text.toString(), calls, "MAX_TOKENS".equals(text(candidate, "finishReason")));
     }
 
     private static JsonObject geminiText(String text) {
@@ -436,8 +502,14 @@ public final class AiClient {
 
     // ------------------------------------------------------------------ shared
 
-    private static AiChat.Reply finish(String text, List<AiChat.ToolCall> calls) throws IOException {
-        if (text.trim().isEmpty() && calls.isEmpty()) throw new IOException("The AI returned an empty reply");
+    private static AiChat.Reply finish(String text, List<AiChat.ToolCall> calls, boolean cutOff) throws IOException {
+        if (text.trim().isEmpty() && calls.isEmpty()) {
+            if (cutOff) {
+                throw new AiException(0, "The model used all " + MAX_OUTPUT_TOKENS + " output tokens for thinking and "
+                        + "had none left to answer. Set Effort to Low in AI settings, or pick a model without a thinking mode.");
+            }
+            throw new IOException("The AI returned an empty reply");
+        }
         return new AiChat.Reply(text, calls);
     }
 
