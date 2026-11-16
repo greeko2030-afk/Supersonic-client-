@@ -30,8 +30,15 @@ public final class AiClient {
     private AiClient() {}
 
     private static final int MAX_RESPONSE_BYTES = 4 * 1024 * 1024;
-    /** Longest answer (thinking included) that is asked for. Small on purpose: low credit plans reject big values. */
+    /** Answer limit used by the plain test overloads (settings use {@link AiConfig#maxTokens}). */
     static final int MAX_OUTPUT_TOKENS = 1024;
+    /** Claude needs a limit in every request: this is what "unlimited" means there. */
+    static final int UNLIMITED_FOR_CLAUDE = 16384;
+    /** When a server refuses a request for its size, the answer limit steps down through these values. */
+    private static final int[] TOKEN_STEPS = {16384, 8192, 4096, 2048, 1024, 512};
+    /** provider|model -> the limit that worked after the server refused a bigger one. */
+    private static final java.util.Map<String, Integer> LEARNED_LIMIT =
+            new java.util.concurrent.ConcurrentHashMap<>();
     /** provider|model|effort combinations that the model refused once, so they are not sent again. */
     private static final java.util.Set<String> EFFORT_REJECTED =
             java.util.Collections.synchronizedSet(new java.util.HashSet<String>());
@@ -75,7 +82,7 @@ public final class AiClient {
             throw new AiException(0, "No endpoint URL for " + provider.label + ". Set it in AI settings.");
         }
         return chat(provider, url, key, AiConfig.model(context, provider), AiConfig.effort(context, provider),
-                system, history, tools, listener);
+                AiConfig.maxTokens(context, provider), system, history, tools, listener);
     }
 
     public static AiChat.Reply chat(AiProvider provider, String url, String key, String model, String system,
@@ -96,16 +103,73 @@ public final class AiClient {
     public static AiChat.Reply chat(AiProvider provider, String url, String key, String model, String effort,
                                     String system, List<AiChat.Msg> history, List<AiChat.ToolSpec> tools,
                                     RateLimitListener listener) throws IOException {
+        return chat(provider, url, key, model, effort, MAX_OUTPUT_TOKENS, system, history, tools, listener);
+    }
+
+    /**
+     * @param maxTokens longest answer to ask for; 0 = unlimited (nothing is sent, except for Claude which needs a
+     *                  number). If the server refuses the request because of that size (400 about max_tokens,
+     *                  402 not enough credit, 413 too large), the limit is lowered and the request is repeated.
+     */
+    public static AiChat.Reply chat(AiProvider provider, String url, String key, String model, String effort,
+                                    int maxTokens, String system, List<AiChat.Msg> history,
+                                    List<AiChat.ToolSpec> tools, RateLimitListener listener) throws IOException {
+        String limitKey = provider.id + "|" + model;
+        int cap = maxTokens;
+        Integer learned = LEARNED_LIMIT.get(limitKey);
+        if (learned != null && (cap == 0 || learned < cap)) cap = learned;
+
+        for (int attempt = 0; ; attempt++) {
+            try {
+                return chatWithEffort(provider, url, key, model, effort, cap, system, history, tools, listener);
+            } catch (AiException e) {
+                int sent = cap == 0 && provider.protocol == AiProvider.Protocol.ANTHROPIC ? UNLIMITED_FOR_CLAUDE : cap;
+                int lower = lowerLimit(e, sent);
+                if (lower < 0 || attempt >= 5) throw e;
+                cap = lower;
+                LEARNED_LIMIT.put(limitKey, cap);
+            }
+        }
+    }
+
+    /** @return the next smaller answer limit to try, or -1 if the error is not about size / cannot go lower */
+    static int lowerLimit(AiException e, int current) {
+        String text = e.getMessage() == null ? "" : e.getMessage().toLowerCase(java.util.Locale.ROOT);
+        int code = e.httpCode;
+        boolean aboutSize = (code == 400 && (text.contains("max_tokens") || text.contains("max_completion_tokens")
+                || text.contains("maxoutputtokens") || text.contains("output tokens")))
+                || (code == 402 && (text.contains("max_tokens") || text.contains("afford")))
+                || (code == 413 && text.contains("token"));
+        if (!aboutSize) return -1;
+
+        if (code == 402) {
+            // "... can only afford 253": ask for exactly what the credit allows
+            Matcher afford = Pattern.compile("afford\\D*(\\d+)").matcher(text);
+            if (afford.find()) {
+                int allowed = Integer.parseInt(afford.group(1)) / 64 * 64;
+                return allowed >= 128 && (current == 0 || allowed < current) ? allowed : -1;
+            }
+        }
+        for (int step : TOKEN_STEPS) {
+            if (current == 0 || step < current) return step;
+        }
+        return -1;
+    }
+
+    private static AiChat.Reply chatWithEffort(AiProvider provider, String url, String key, String model,
+                                               String effort, int maxTokens, String system,
+                                               List<AiChat.Msg> history, List<AiChat.ToolSpec> tools,
+                                               RateLimitListener listener) throws IOException {
         String level = effort == null ? "" : effort.trim().toLowerCase(java.util.Locale.ROOT);
         if (!level.equals("low") && !level.equals("medium") && !level.equals("high")) level = "";
         String memo = provider.id + "|" + model + "|" + level;
         if (!level.isEmpty() && EFFORT_REJECTED.contains(memo)) level = "";
         try {
-            return send(provider, url, key, model, level, system, history, tools, listener);
+            return send(provider, url, key, model, level, maxTokens, system, history, tools, listener);
         } catch (AiException e) {
             if (!level.isEmpty() && e.httpCode == 400 && mentionsEffort(e.getMessage())) {
                 EFFORT_REJECTED.add(memo);
-                return send(provider, url, key, model, "", system, history, tools, listener);
+                return send(provider, url, key, model, "", maxTokens, system, history, tools, listener);
             }
             throw e;
         }
@@ -118,22 +182,22 @@ public final class AiClient {
     }
 
     private static AiChat.Reply send(AiProvider provider, String url, String key, String model, String effort,
-                                     String system, List<AiChat.Msg> history, List<AiChat.ToolSpec> tools,
+                                     int maxTokens, String system, List<AiChat.Msg> history, List<AiChat.ToolSpec> tools,
                                      RateLimitListener listener) throws IOException {
         switch (provider.protocol) {
             case ANTHROPIC:
-                return anthropic(provider, url, key, model, effort, system, history, tools, listener);
+                return anthropic(provider, url, key, model, effort, maxTokens, system, history, tools, listener);
             case GEMINI:
-                return gemini(url, key, model, effort, system, history, tools, listener);
+                return gemini(url, key, model, effort, maxTokens, system, history, tools, listener);
             default:
-                return openAi(provider, url, key, model, effort, system, history, tools, listener);
+                return openAi(provider, url, key, model, effort, maxTokens, system, history, tools, listener);
         }
     }
 
     // ------------------------------------------------------------------ OpenAI compatible
 
     private static AiChat.Reply openAi(AiProvider provider, String url, String key, String model, String effort,
-                                       String system,
+                                       int maxTokens, String system,
                                        List<AiChat.Msg> history, List<AiChat.ToolSpec> tools,
                                        RateLimitListener listener) throws IOException {
         String endpoint = url.trim();
@@ -205,9 +269,10 @@ public final class AiClient {
             }
         }
         if (provider == AiProvider.OPENAI) {
-            body.addProperty("max_completion_tokens", MAX_OUTPUT_TOKENS); // newer OpenAI models reject max_tokens
+            // newer OpenAI models reject max_tokens
+            if (maxTokens > 0) body.addProperty("max_completion_tokens", maxTokens);
         } else {
-            body.addProperty("max_tokens", MAX_OUTPUT_TOKENS);
+            if (maxTokens > 0) body.addProperty("max_tokens", maxTokens);
             body.addProperty("temperature", 0.3);
         }
 
@@ -268,12 +333,12 @@ public final class AiClient {
     // ------------------------------------------------------------------ Anthropic (Claude)
 
     private static AiChat.Reply anthropic(AiProvider provider, String url, String key, String model, String effort,
-                                          String system,
+                                          int maxTokens, String system,
                                           List<AiChat.Msg> history, List<AiChat.ToolSpec> tools,
                                           RateLimitListener listener) throws IOException {
         JsonObject body = new JsonObject();
         body.addProperty("model", model);
-        body.addProperty("max_tokens", MAX_OUTPUT_TOKENS);
+        body.addProperty("max_tokens", maxTokens > 0 ? maxTokens : UNLIMITED_FOR_CLAUDE);
         if (system != null && !system.isEmpty()) body.addProperty("system", system);
 
         JsonArray messages = new JsonArray();
@@ -366,7 +431,8 @@ public final class AiClient {
 
     // ------------------------------------------------------------------ Google Gemini
 
-    private static AiChat.Reply gemini(String url, String key, String model, String effort, String system,
+    private static AiChat.Reply gemini(String url, String key, String model, String effort, int maxTokens,
+                                       String system,
                                        List<AiChat.Msg> history, List<AiChat.ToolSpec> tools,
                                        RateLimitListener listener) throws IOException {
         String endpoint = url.trim();
@@ -445,7 +511,7 @@ public final class AiClient {
             body.add("tools", array);
         }
         JsonObject config = new JsonObject();
-        config.addProperty("maxOutputTokens", MAX_OUTPUT_TOKENS);
+        if (maxTokens > 0) config.addProperty("maxOutputTokens", maxTokens);
         if (!effort.isEmpty()) {
             JsonObject thinking = new JsonObject();
             thinking.addProperty("thinkingLevel", effort);
@@ -505,8 +571,9 @@ public final class AiClient {
     private static AiChat.Reply finish(String text, List<AiChat.ToolCall> calls, boolean cutOff) throws IOException {
         if (text.trim().isEmpty() && calls.isEmpty()) {
             if (cutOff) {
-                throw new AiException(0, "The model used all " + MAX_OUTPUT_TOKENS + " output tokens for thinking and "
-                        + "had none left to answer. Set Effort to Low in AI settings, or pick a model without a thinking mode.");
+                throw new AiException(0, "The model used all of its output tokens for thinking and had none left to "
+                        + "answer. Set Effort to Low in AI settings, raise Answer length, or pick a model without a "
+                        + "thinking mode.");
             }
             throw new IOException("The AI returned an empty reply");
         }
@@ -701,6 +768,8 @@ public final class AiClient {
                 return "The request was refused (403). The key may be disabled, or not allowed in your region." + suffix;
             case 404:
                 return "The model or endpoint was not found (404). Open AI settings and tap \"Choose model\" to see the models your key can use." + suffix;
+            case 402:
+                return "Not enough credit for this request (402). Use a free model, add credit, or lower Answer length in AI settings." + suffix;
             case 413:
                 return "The request was too large for this model (413). Start a new chat." + suffix;
             case 429:

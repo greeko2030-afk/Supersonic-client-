@@ -21,6 +21,7 @@ public final class AiConfig {
     private static final String PREF_MODEL = "ss_ai_model_";
     private static final String PREF_URL = "ss_ai_url_";
     private static final String PREF_EFFORT = "ss_ai_effort_";
+    private static final String PREF_MAX_TOKENS = "ss_ai_maxtokens_";
     private static final String PREF_CONSENT = "ss_ai_consent";
     private static final String PREF_AUTOFIX = "ss_ai_autofix";
     private static final String PREF_AUTO_APPROVE = "ss_ai_auto_approve";
@@ -104,6 +105,24 @@ public final class AiConfig {
 
     public static void saveEffort(Context context, AiProvider provider, String effort) {
         prefs(context).edit().putString(PREF_EFFORT + provider.id, effort == null ? "" : effort.trim()).apply();
+    }
+
+    /**
+     * Longest answer to ask for, in tokens. 0 means unlimited: no limit is sent and the model may write as much
+     * as it needs. This is the default. If a server refuses a request because of its size, SS Agent lowers the
+     * value by itself (see AiClient).
+     */
+    public static int maxTokens(Context context, AiProvider provider) {
+        try {
+            int value = Integer.parseInt(prefs(context).getString(PREF_MAX_TOKENS + provider.id, "0").trim());
+            return value == 1024 || value == 2048 || value == 4096 || value == 8192 || value == 16384 ? value : 0;
+        } catch (NumberFormatException e) {
+            return 0;
+        }
+    }
+
+    public static void saveMaxTokens(Context context, AiProvider provider, int tokens) {
+        prefs(context).edit().putString(PREF_MAX_TOKENS + provider.id, String.valueOf(Math.max(0, tokens))).apply();
     }
 
     public static boolean hasConsent(Context context) {

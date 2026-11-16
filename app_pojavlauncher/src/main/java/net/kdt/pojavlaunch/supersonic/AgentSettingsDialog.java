@@ -99,6 +99,19 @@ public final class AgentSettingsDialog {
         effort.setAdapter(new ArrayAdapter<>(context, android.R.layout.simple_spinner_dropdown_item, effortLabels));
         box.addView(effort);
 
+        final TextView lengthInfo = new TextView(context);
+        lengthInfo.setTextSize(12);
+        lengthInfo.setText("Answer length: Unlimited sends no limit, so the AI can write as much as it needs. Free plans "
+                + "can refuse that (credit or per-minute limits). SS Agent then lowers it by itself.");
+        box.addView(lengthInfo);
+        final String[] lengthLabels = {
+                "Answer length: Unlimited", "Answer length: 16384 tokens", "Answer length: 8192 tokens",
+                "Answer length: 4096 tokens", "Answer length: 2048 tokens", "Answer length: 1024 tokens (short)"};
+        final int[] lengthValues = {0, 16384, 8192, 4096, 2048, 1024};
+        final Spinner length = new Spinner(context);
+        length.setAdapter(new ArrayAdapter<>(context, android.R.layout.simple_spinner_dropdown_item, lengthLabels));
+        box.addView(length);
+
         final TextView link = new TextView(context);
         link.setTextIsSelectable(true);
         box.addView(link);
@@ -216,6 +229,10 @@ public final class AgentSettingsDialog {
             int effortIndex = 0;
             for (int i = 0; i < effortValues.length; i++) if (effortValues[i].equals(savedEffort)) effortIndex = i;
             effort.setSelection(effortIndex);
+            int savedLength = AiConfig.maxTokens(ctx, provider);
+            int lengthIndex = 0;
+            for (int i = 0; i < lengthValues.length; i++) if (lengthValues[i] == savedLength) lengthIndex = i;
+            length.setSelection(lengthIndex);
             link.setText(provider.keyUrl.isEmpty() ? "" : "Get a key: " + provider.keyUrl);
             if (found.containsKey(provider)) showModelStatus.run();
             else detect[0].run();
@@ -251,6 +268,7 @@ public final class AgentSettingsDialog {
                     String typed = key.getText().toString().trim();
                     if (!typed.isEmpty()) AiConfig.saveKey(ctx, provider, typed);
                     AiConfig.saveModel(ctx, provider, model.getText().toString());
+                    AiConfig.saveMaxTokens(ctx, provider, lengthValues[Math.max(0, length.getSelectedItemPosition())]);
                     AiConfig.saveEffort(ctx, provider, effortValues[Math.max(0, effort.getSelectedItemPosition())]);
                     if (provider == AiProvider.CUSTOM) AiConfig.saveBaseUrl(ctx, provider, url.getText().toString());
                     AiConfig.setAutoFix(ctx, autoFix.isChecked());
