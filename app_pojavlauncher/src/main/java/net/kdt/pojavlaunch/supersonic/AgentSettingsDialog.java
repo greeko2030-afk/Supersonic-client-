@@ -116,6 +116,37 @@ public final class AgentSettingsDialog {
         link.setTextIsSelectable(true);
         box.addView(link);
 
+        final CheckBox webAccess = new CheckBox(context);
+        webAccess.setText("Let SS Agent search the web and read pages (search words go to DuckDuckGo, or to Tavily if you add a key)");
+        webAccess.setChecked(AiConfig.webEnabled(context));
+        box.addView(webAccess);
+        final TextView searchInfo = new TextView(context);
+        searchInfo.setTextSize(12);
+        box.addView(searchInfo);
+        final EditText searchKey = new EditText(context);
+        searchKey.setSingleLine(true);
+        searchKey.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD);
+        searchKey.setHint("Tavily search key (optional, free at tavily.com)");
+        box.addView(searchKey);
+        final Button removeSearchKey = new Button(context);
+        removeSearchKey.setAllCaps(false);
+        removeSearchKey.setText("Remove search key");
+        box.addView(removeSearchKey);
+        final Runnable refreshSearch = () -> {
+            String saved = AiConfig.searchKey(ctx);
+            boolean has = !saved.isEmpty();
+            searchInfo.setText(has
+                    ? "Web search uses Tavily (saved key " + (saved.length() > 8
+                    ? saved.substring(0, 4) + "…" + saved.substring(saved.length() - 4) : "••••") + ")."
+                    : "Web search uses DuckDuckGo (no key). A free Tavily key is more reliable.");
+            removeSearchKey.setVisibility(has ? View.VISIBLE : View.GONE);
+        };
+        removeSearchKey.setOnClickListener(v -> {
+            AiConfig.saveSearchKey(ctx, "");
+            refreshSearch.run();
+        });
+        refreshSearch.run();
+
         final CheckBox autoFix = new CheckBox(context);
         autoFix.setText("After a crash, fix safe problems automatically (undoable)");
         autoFix.setChecked(AiConfig.autoFix(context));
@@ -271,6 +302,9 @@ public final class AgentSettingsDialog {
                     AiConfig.saveMaxTokens(ctx, provider, lengthValues[Math.max(0, length.getSelectedItemPosition())]);
                     AiConfig.saveEffort(ctx, provider, effortValues[Math.max(0, effort.getSelectedItemPosition())]);
                     if (provider == AiProvider.CUSTOM) AiConfig.saveBaseUrl(ctx, provider, url.getText().toString());
+                    String typedSearchKey = searchKey.getText().toString().trim();
+                    if (!typedSearchKey.isEmpty()) AiConfig.saveSearchKey(ctx, typedSearchKey);
+                    AiConfig.setWebEnabled(ctx, webAccess.isChecked());
                     AiConfig.setAutoFix(ctx, autoFix.isChecked());
                     AiConfig.setAutoApprove(ctx, autoApprove.isChecked());
                     if (onSaved != null) onSaved.run();

@@ -22,6 +22,8 @@ public final class AiConfig {
     private static final String PREF_URL = "ss_ai_url_";
     private static final String PREF_EFFORT = "ss_ai_effort_";
     private static final String PREF_MAX_TOKENS = "ss_ai_maxtokens_";
+    private static final String PREF_WEB = "ss_ai_web_enabled";
+    private static final String PREF_SEARCH_KEY = "ss_ai_websearch_key";
     private static final String PREF_CONSENT = "ss_ai_consent";
     private static final String PREF_AUTOFIX = "ss_ai_autofix";
     private static final String PREF_AUTO_APPROVE = "ss_ai_auto_approve";
@@ -123,6 +125,24 @@ public final class AiConfig {
 
     public static void saveMaxTokens(Context context, AiProvider provider, int tokens) {
         prefs(context).edit().putString(PREF_MAX_TOKENS + provider.id, String.valueOf(Math.max(0, tokens))).apply();
+    }
+
+    /** Web search, reading web pages and downloads. On by default; the tools are left out when it is off. */
+    public static boolean webEnabled(Context context) {
+        return prefs(context).getBoolean(PREF_WEB, true);
+    }
+
+    public static void setWebEnabled(Context context, boolean enabled) {
+        prefs(context).edit().putBoolean(PREF_WEB, enabled).apply();
+    }
+
+    /** Optional key of the Tavily search service. Without it, web search uses DuckDuckGo. */
+    public static String searchKey(Context context) {
+        return prefs(context).getString(PREF_SEARCH_KEY, "").trim();
+    }
+
+    public static void saveSearchKey(Context context, String key) {
+        prefs(context).edit().putString(PREF_SEARCH_KEY, key == null ? "" : key.trim()).apply();
     }
 
     public static boolean hasConsent(Context context) {

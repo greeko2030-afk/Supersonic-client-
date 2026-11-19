@@ -126,8 +126,8 @@ public final class AgentSession {
     private void runLoop(Context app) {
         try {
             AiProvider provider = AiConfig.provider(app);
-            AgentTools tools = new AgentTools(app, (title, detail) -> askUser(title, detail) != DENY);
-            List<AiChat.ToolSpec> specs = AgentTools.specs();
+            AgentTools tools = new AgentTools(app, (title, detail, always) -> askUser(title, detail, always) != DENY);
+            List<AiChat.ToolSpec> specs = AgentTools.specs(AiConfig.webEnabled(app));
 
             for (int step = 0; step < MAX_STEPS && !cancelled; step++) {
                 List<AiChat.Msg> snapshot = prepareHistory();
@@ -167,12 +167,16 @@ public final class AgentSession {
         }
     }
 
-    private int askUser(String title, String detail) {
-        if (allowAll) return ALLOW;
+    /** @param always risky action (a download): asked even after "Allow all in this chat" */
+    private int askUser(String title, String detail, boolean always) {
+        if (allowAll && !always) return ALLOW;
         Listener current = listener;
         if (current == null) return DENY;
         int answer = current.approve(title, detail);
-        if (answer == ALLOW_ALL) allowAll = true;
+        if (answer == ALLOW_ALL) {
+            if (!always) allowAll = true;
+            return ALLOW;
+        }
         return answer;
     }
 
