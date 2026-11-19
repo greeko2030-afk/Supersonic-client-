@@ -41,6 +41,7 @@ import net.kdt.pojavlaunch.prefs.LauncherPreferences;
 import net.kdt.pojavlaunch.prefs.screens.LauncherPreferenceFragment;
 import net.kdt.pojavlaunch.supersonic.AddonsFragment;
 import net.kdt.pojavlaunch.supersonic.AgentChatFragment;
+import net.kdt.pojavlaunch.supersonic.DefaultInstance;
 import net.kdt.pojavlaunch.supersonic.ServersFragment;
 import net.kdt.pojavlaunch.supersonic.SupersonicSettingsFragment;
 import net.kdt.pojavlaunch.progresskeeper.ProgressKeeper;
@@ -200,6 +201,10 @@ public class LauncherActivity extends BaseActivity {
             agentArgs.putBoolean(AgentChatFragment.ARG_CRASH, true);
             Tools.swapFragment(this, AgentChatFragment.class, AgentChatFragment.TAG, agentArgs);
         }
+
+        // First start: create the Fabric 1.21 instance and fetch its game files once (on Wi-Fi),
+        // so that Play is instant afterwards. Does nothing when this was already done.
+        DefaultInstance.ensure(this);
 
 
         IconCacheJanitor.runJanitor();
