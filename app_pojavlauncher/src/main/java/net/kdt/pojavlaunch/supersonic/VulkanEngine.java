@@ -60,8 +60,6 @@ public final class VulkanEngine {
     /** A device that reports a newer Vulkan than 1.4 runs on the 1.4 tier. */
     private static final int MAX_TIER_MINOR = 4;
 
-    /** Maximum size of the persistent shader cache. Mesa removes the oldest entries above it. */
-    private static final String SHADER_CACHE_MAX_SIZE = "512M";
     /**
      * The game counts as started when Minecraft logs its OpenGL renderer. Versions that do not log it
      * count as started after this time alive.
@@ -152,16 +150,24 @@ public final class VulkanEngine {
         public final String reason;
         /** True when Vulkan is off because it did not start the last time. */
         public final boolean blockedByGuard;
+        /** True when the instance runs VulkanMod: the game itself draws with Vulkan, nothing is translated. */
+        public final boolean nativeVulkan;
 
         Decision(boolean useVulkan, int tier, String reason, boolean blockedByGuard) {
+            this(useVulkan, tier, reason, blockedByGuard, false);
+        }
+
+        Decision(boolean useVulkan, int tier, String reason, boolean blockedByGuard, boolean nativeVulkan) {
             this.useVulkan = useVulkan;
             this.tier = tier;
             this.reason = reason;
             this.blockedByGuard = blockedByGuard;
+            this.nativeVulkan = nativeVulkan;
         }
 
         /** Short name for the screen, for example "Vulkan 1.3" or "OpenGL". */
         public String shortLabel() {
+            if (nativeVulkan) return "Vulkan (native)";
             if (!useVulkan) return "OpenGL";
             return tier == 0 ? "Vulkan" : tierName(tier);
         }
@@ -204,6 +210,13 @@ public final class VulkanEngine {
         Device device = detect(context);
         int tier = tierOf(device);
         if (launching) refreshGuard(mode);
+
+        // VulkanMod draws with Vulkan by itself (Pojav's native layer switches over when the game asks for a window
+        // without OpenGL), so nothing has to be translated and Zink must not be started for it.
+        if (NativeVulkan.isReady(SupersonicProfile.current())) {
+            return new Decision(false, tier, "VulkanMod is installed in this instance: the game draws with Vulkan "
+                    + "directly, nothing is translated", false, true);
+        }
 
         if (MODE_OPENGL.equals(mode)) {
             return keep(tier, "the engine mode is OpenGL");
@@ -249,6 +262,9 @@ public final class VulkanEngine {
 
     /** Text for the settings screen: what this device has and what the selected mode does with it. */
     public static String settingsSummary(Context context, String mode) {
+        if (NativeVulkan.isReady(SupersonicProfile.current())) {
+            return "VulkanMod is installed in the selected instance: it draws with Vulkan directly, so this setting is not used for it.";
+        }
         Device device = detect(context);
         int tier = tierOf(device);
         String found = device.hasVulkan ? "This device has " + device.label() + ". " : "This device has no Vulkan. ";
@@ -275,13 +291,13 @@ public final class VulkanEngine {
      */
     public static Map<String, String> zinkEnvironment() {
         Map<String, String> env = new HashMap<>();
-        File cache = new File(guardDir(), "shader_cache");
+        File cache = ShaderCache.dir();
         if (cache.isDirectory() || cache.mkdirs()) {
             // Mesa 22.1 renamed MESA_GLSL_CACHE_* to MESA_SHADER_CACHE_*. The old name is deprecated,
             // so the new one is required for the cache to work with a recent Mesa.
             env.put("MESA_SHADER_CACHE_DIR", cache.getAbsolutePath());
             env.put("MESA_GLSL_CACHE_DIR", cache.getAbsolutePath());
-            env.put("MESA_SHADER_CACHE_MAX_SIZE", SHADER_CACHE_MAX_SIZE);
+            env.put("MESA_SHADER_CACHE_MAX_SIZE", ShaderCache.limit());
         }
         env.putAll(tuningFor(sLastTier));
         return env;
