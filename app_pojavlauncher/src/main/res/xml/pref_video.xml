@@ -23,6 +23,24 @@
             android:defaultValue="auto"
             android:icon="@drawable/ic_setting_engine"
             app2:useSimpleSummaryProvider="false"/>
+        <androidx.preference.Preference
+            android:key="supersonic_shader_cache"
+            android:title="Shader cache"
+            android:summary="Translated shaders are stored hidden inside the app. Tap to clear."
+            android:icon="@drawable/ic_setting_engine"/>
+        <androidx.preference.ListPreference
+            android:key="supersonic_shader_cache_limit"
+            android:title="Shader cache size limit"
+            android:entries="@array/supersonic_cache_limit_names"
+            android:entryValues="@array/supersonic_cache_limit_values"
+            android:defaultValue="512M"
+            android:icon="@drawable/ic_setting_engine"
+            app2:useSimpleSummaryProvider="true"/>
+        <androidx.preference.Preference
+            android:key="supersonic_native_vulkan"
+            android:title="Native Vulkan (VulkanMod)"
+            android:summary="The game draws with Vulkan directly, nothing is translated while you play. Fabric instances only."
+            android:icon="@drawable/ic_setting_engine"/>
     </PreferenceCategory>
 
     <PreferenceCategory android:title="@string/preference_category_video" >
