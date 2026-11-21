@@ -12,6 +12,9 @@ import net.kdt.pojavlaunch.R;
 import net.kdt.pojavlaunch.Tools;
 import net.kdt.pojavlaunch.prefs.CustomSeekBarPreference;
 import net.kdt.pojavlaunch.prefs.LauncherPreferences;
+import net.kdt.pojavlaunch.supersonic.NativeVulkan;
+import net.kdt.pojavlaunch.supersonic.NativeVulkanDialog;
+import net.kdt.pojavlaunch.supersonic.ShaderCache;
 import net.kdt.pojavlaunch.supersonic.VulkanEngine;
 
 /**
@@ -54,6 +57,8 @@ public class LauncherPreferenceVideoFragment extends LauncherPreferenceFragment 
 
         setupPerformanceMode();
         setupEngineMode();
+        setupShaderCache();
+        setupNativeVulkan();
         computeVisibility();
     }
 
@@ -75,6 +80,37 @@ public class LauncherPreferenceVideoFragment extends LauncherPreferenceFragment 
         engine.setSummary(VulkanEngine.settingsSummary(requireContext(), VulkanEngine.mode()));
         engine.setOnPreferenceChangeListener((preference, newValue) -> {
             engine.setSummary(VulkanEngine.settingsSummary(requireContext(), (String) newValue));
+            return true;
+        });
+    }
+
+    /**
+     * Shows what is stored in the hidden shader cache, and clears it on tap. The size limit is a plain list
+     * preference (ShaderCache reads it when the game starts).
+     */
+    private void setupShaderCache() {
+        androidx.preference.Preference cache = requirePreference("supersonic_shader_cache");
+        cache.setSummary(ShaderCache.summary());
+        cache.setOnPreferenceClickListener(preference -> {
+            new androidx.appcompat.app.AlertDialog.Builder(requireContext())
+                    .setTitle("Clear shader cache?")
+                    .setMessage("Shaders are translated again when the game needs them, so the next launch is slower.")
+                    .setNegativeButton(android.R.string.cancel, null)
+                    .setPositiveButton("Clear", (dialog, which) -> {
+                        ShaderCache.clear();
+                        cache.setSummary(ShaderCache.summary());
+                    })
+                    .show();
+            return true;
+        });
+    }
+
+    /** Native Vulkan (VulkanMod): the summary says what is going on in the selected instance, a tap opens the dialog. */
+    private void setupNativeVulkan() {
+        androidx.preference.Preference nativeVulkan = requirePreference("supersonic_native_vulkan");
+        nativeVulkan.setSummary(NativeVulkan.status(requireContext()));
+        nativeVulkan.setOnPreferenceClickListener(preference -> {
+            NativeVulkanDialog.show(requireActivity(), () -> nativeVulkan.setSummary(NativeVulkan.status(requireContext())));
             return true;
         });
     }
