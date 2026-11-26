@@ -1,30 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Graphics engine: the entries of the list preference "supersonic_graphics_engine" -->
-    <string-array name="supersonic_engine_mode_names">
-        <item>Auto (Vulkan 1.2 or newer: Vulkan, otherwise OpenGL)</item>
-        <item>OpenGL only</item>
-        <item>Vulkan (force)</item>
+    <string-array name="supersonic_performance_mode_names">
+        <item>Battery saver</item>
+        <item>Balanced</item>
+        <item>Ultra</item>
     </string-array>
-
-    <string-array name="supersonic_engine_mode_values">
-        <item>auto</item>
-        <item>opengl</item>
-        <item>vulkan</item>
-    </string-array>
-
-    <!-- Shader cache size limit: the entries of the list preference "supersonic_shader_cache_limit" -->
-    <string-array name="supersonic_cache_limit_names">
-        <item>512 MB (default)</item>
-        <item>1 GB</item>
-        <item>2 GB</item>
-        <item>4 GB</item>
-    </string-array>
-
-    <string-array name="supersonic_cache_limit_values">
-        <item>512M</item>
-        <item>1G</item>
-        <item>2G</item>
-        <item>4G</item>
+    <string-array name="supersonic_performance_mode_values">
+        <item>0</item>
+        <item>1</item>
+        <item>2</item>
     </string-array>
 </resources>
