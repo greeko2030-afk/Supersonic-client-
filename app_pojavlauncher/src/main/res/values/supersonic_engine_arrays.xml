@@ -12,4 +12,19 @@
         <item>opengl</item>
         <item>vulkan</item>
     </string-array>
+
+    <!-- Shader cache size limit: the entries of the list preference "supersonic_shader_cache_limit" -->
+    <string-array name="supersonic_cache_limit_names">
+        <item>512 MB (default)</item>
+        <item>1 GB</item>
+        <item>2 GB</item>
+        <item>4 GB</item>
+    </string-array>
+
+    <string-array name="supersonic_cache_limit_values">
+        <item>512M</item>
+        <item>1G</item>
+        <item>2G</item>
+        <item>4G</item>
+    </string-array>
 </resources>
