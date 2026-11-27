@@ -4,15 +4,12 @@ import android.app.Activity;
 import android.content.Intent;
 import android.content.res.AssetFileDescriptor;
 import android.graphics.SurfaceTexture;
-import android.media.MediaCodecInfo;
-import android.media.MediaCodecList;
 import android.media.MediaPlayer;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.SystemClock;
-import android.provider.Settings;
 import android.util.Log;
 import android.view.Gravity;
 import android.view.Surface;
@@ -25,23 +22,24 @@ import android.widget.TextView;
 
 /**
  * Intro screen shown every time the app is opened.
+ *
  * Plays a full screen video (res/raw/intro_video.mp4). A small text
  * "Optimizing your mobile" and a counter (1 -> 100) are shown at the bottom.
- * The counter takes exactly 16 seconds, then the normal launcher flow
- * (TestStorageActivity) is opened.
  *
- * NOTE: the counter uses a Handler + SystemClock instead of ValueAnimator,
- * because ValueAnimator finishes instantly when the phone has animations
- * turned off (Animator duration scale = off, battery saver, etc).
+ * The counter follows the video position, so it reaches 100 exactly when the
+ * video ends. Right after that the normal launcher flow (TestStorageActivity)
+ * is opened.
+ *
+ * If the video cannot be played, a 16 second timer is used instead.
+ * The timer uses SystemClock (not ValueAnimator), so it also works when the
+ * phone has animations turned off.
  */
 public class IntroActivity extends Activity implements TextureView.SurfaceTextureListener {
     private static final String TAG = "IntroActivity";
 
-    /** Shows a small yellow debug box at the top left. Set to false when everything works. */
-    private static final boolean SHOW_DEBUG = true;
-
-    private static final long INTRO_DURATION_MS = 16000L; // 16 seconds
-    private static final long TICK_MS = 33L;              // ~30 updates per second
+    private static final long FALLBACK_DURATION_MS = 16000L; // only used if the video fails
+    private static final long VIDEO_PREPARE_TIMEOUT_MS = 4000L;
+    private static final long TICK_MS = 33L;                 // ~30 updates per second
     private static final int COUNT_FROM = 1;
     private static final int COUNT_TO = 100;
 
@@ -51,41 +49,50 @@ public class IntroActivity extends Activity implements TextureView.SurfaceTextur
     private TextureView mTextureView;
     private View mPoster;
     private TextView mCounterText;
-    private TextView mDebugText;
     private ProgressBar mProgressBar;
 
     private Surface mSurface;
     private MediaPlayer mPlayer;
     private boolean mPlayerPrepared = false;
-    private boolean mFirstFrameShown = false;
+    private int mVideoDurationMs = 0;
 
     // Counter state
     private boolean mCounterStarted = false;
     private boolean mCounterRunning = false;
-    private long mCounterElapsedMs = 0;
+    private boolean mFollowVideo = false;   // true: counter follows the video, false: fallback timer
+    private long mFallbackElapsedMs = 0;
     private long mLastTickTime = 0;
     private boolean mFinished = false;
 
-    private final StringBuilder mDebugLog = new StringBuilder();
-
-    private final Runnable mStartCounterFallback = this::startCounterIfNeeded;
+    /** Used when the video does not start in time. */
+    private final Runnable mFallbackStart = () -> {
+        if (!mCounterStarted) {
+            Log.w(TAG, "Video did not start in time, using the fallback timer");
+            startCounter(false);
+        }
+    };
 
     private final Runnable mCounterTick = new Runnable() {
         @Override
         public void run() {
             if (!mCounterRunning || mFinished) return;
-            long now = SystemClock.uptimeMillis();
-            mCounterElapsedMs += now - mLastTickTime;
-            mLastTickTime = now;
 
-            if (mCounterElapsedMs >= INTRO_DURATION_MS) {
-                updateCounter(COUNT_TO);
-                debug("counter finished");
-                goToLauncher();
-                return;
+            float progress;
+            if (mFollowVideo) {
+                progress = getVideoProgress();
+                if (progress > 0.02f) mPoster.setVisibility(View.GONE); // real video is visible
+            } else {
+                long now = SystemClock.uptimeMillis();
+                mFallbackElapsedMs += now - mLastTickTime;
+                mLastTickTime = now;
+                progress = (float) mFallbackElapsedMs / FALLBACK_DURATION_MS;
+                if (progress >= 1f) {
+                    updateCounter(COUNT_TO);
+                    goToLauncher();
+                    return;
+                }
             }
-            int value = COUNT_FROM + (int) ((COUNT_TO - COUNT_FROM) * mCounterElapsedMs / INTRO_DURATION_MS);
-            updateCounter(value);
+            updateCounter(COUNT_FROM + (int) ((COUNT_TO - COUNT_FROM) * Math.min(progress, 1f)));
             mHandler.postDelayed(this, TICK_MS);
         }
     };
@@ -106,25 +113,15 @@ public class IntroActivity extends Activity implements TextureView.SurfaceTextur
         mPoster = findViewById(R.id.intro_poster);
         mCounterText = findViewById(R.id.intro_counter);
         mProgressBar = findViewById(R.id.intro_progress);
-        mDebugText = findViewById(R.id.intro_debug);
-        if (SHOW_DEBUG) mDebugText.setVisibility(View.VISIBLE);
-
-        debug("IntroActivity v5 started");
-        debug("device: " + Build.MODEL + ", Android API " + Build.VERSION.SDK_INT);
-        debug("H.264 decoder: " + findAvcDecoder());
-        debug("animator scale: " + getAnimatorScale() + " (0 = animations off)");
 
         mTextureView.setSurfaceTextureListener(this);
-
-        // Safety: if the video is slow or broken, the counter still starts after 4 seconds.
-        mHandler.postDelayed(mStartCounterFallback, 4000);
+        mHandler.postDelayed(mFallbackStart, VIDEO_PREPARE_TIMEOUT_MS);
     }
 
     // ---------------------------------------------------------------- video
 
     @Override
     public void onSurfaceTextureAvailable(SurfaceTexture st, int width, int height) {
-        debug("surface ready " + width + "x" + height);
         mSurface = new Surface(st);
         startPlayer();
     }
@@ -151,43 +148,42 @@ public class IntroActivity extends Activity implements TextureView.SurfaceTextur
             mPlayer = new MediaPlayer();
 
             AssetFileDescriptor afd = getResources().openRawResourceFd(R.raw.intro_video);
-            debug("video file size: " + afd.getLength() + " bytes");
             mPlayer.setDataSource(afd.getFileDescriptor(), afd.getStartOffset(), afd.getLength());
             afd.close();
 
             mPlayer.setSurface(mSurface);
-            mPlayer.setLooping(true); // keeps playing if the video is shorter than 16 seconds
+            mPlayer.setLooping(false); // play once, the intro ends when the video ends
 
-            mPlayer.setOnVideoSizeChangedListener((mp, w, h) -> {
-                debug("video size " + w + "x" + h);
-                fitVideoToScreen(w, h);
-            });
+            mPlayer.setOnVideoSizeChangedListener((mp, w, h) -> fitVideoToScreen(w, h));
             mPlayer.setOnPreparedListener(mp -> {
                 mPlayerPrepared = true;
-                debug("prepared, duration " + mp.getDuration() + " ms");
+                mVideoDurationMs = mp.getDuration();
                 fitVideoToScreen(mp.getVideoWidth(), mp.getVideoHeight());
                 mp.start();
+                startCounter(true); // counter follows the video
             });
             mPlayer.setOnInfoListener((mp, what, extra) -> {
                 if (what == MediaPlayer.MEDIA_INFO_VIDEO_RENDERING_START) {
-                    mFirstFrameShown = true;
-                    debug("first frame shown");
-                    mPoster.setVisibility(View.GONE); // real video is visible now
-                    startCounterIfNeeded();           // counter starts together with the video
+                    mPoster.setVisibility(View.GONE);
                 }
                 return false;
             });
+            mPlayer.setOnCompletionListener(mp -> {
+                // Video finished: counter is 100 and the app opens right now.
+                if (mFollowVideo) {
+                    updateCounter(COUNT_TO);
+                    goToLauncher();
+                }
+            });
             mPlayer.setOnErrorListener((mp, what, extra) -> {
-                debug("ERROR what=" + what + " extra=" + extra);
                 Log.e(TAG, "Video error what=" + what + " extra=" + extra);
-                startCounterIfNeeded(); // do not block the user if the video fails
+                if (!mCounterStarted) startCounter(false); // video failed, use the timer
                 return true;
             });
             mPlayer.prepareAsync();
         } catch (Throwable t) {
-            debug("EXCEPTION " + t);
             Log.e(TAG, "Could not play intro video", t);
-            startCounterIfNeeded();
+            if (!mCounterStarted) startCounter(false);
         }
     }
 
@@ -199,6 +195,16 @@ public class IntroActivity extends Activity implements TextureView.SurfaceTextur
             } catch (Throwable ignored) { }
             mPlayer = null;
         }
+    }
+
+    /** Video progress from 0.0 to 1.0. */
+    private float getVideoProgress() {
+        try {
+            if (mPlayer != null && mPlayerPrepared && mVideoDurationMs > 0) {
+                return (float) mPlayer.getCurrentPosition() / mVideoDurationMs;
+            }
+        } catch (IllegalStateException ignored) { }
+        return 0f;
     }
 
     /** Scales the video up (keeping the aspect ratio) so it covers the whole screen. */
@@ -226,30 +232,16 @@ public class IntroActivity extends Activity implements TextureView.SurfaceTextur
     }
 
     /** Starts the 1 -> 100 counter (only once). */
-    private void startCounterIfNeeded() {
+    private void startCounter(boolean followVideo) {
         if (mCounterStarted || mFinished) return;
+        mHandler.removeCallbacks(mFallbackStart);
         mCounterStarted = true;
         mCounterRunning = true;
-        mCounterElapsedMs = 0;
+        mFollowVideo = followVideo;
+        mFallbackElapsedMs = 0;
         mLastTickTime = SystemClock.uptimeMillis();
         updateCounter(COUNT_FROM);
         mHandler.post(mCounterTick);
-        debug("counter started");
-    }
-
-    private void pauseCounter() {
-        if (mCounterRunning) {
-            mCounterRunning = false;
-            mHandler.removeCallbacks(mCounterTick);
-        }
-    }
-
-    private void resumeCounter() {
-        if (mCounterStarted && !mCounterRunning && !mFinished) {
-            mCounterRunning = true;
-            mLastTickTime = SystemClock.uptimeMillis();
-            mHandler.post(mCounterTick);
-        }
     }
 
     // ------------------------------------------------------------ navigation
@@ -271,7 +263,10 @@ public class IntroActivity extends Activity implements TextureView.SurfaceTextur
         try {
             if (mPlayer != null && mPlayerPrepared && mPlayer.isPlaying()) mPlayer.pause();
         } catch (IllegalStateException ignored) { }
-        pauseCounter();
+        if (mCounterRunning) {
+            mCounterRunning = false;
+            mHandler.removeCallbacks(mCounterTick);
+        }
     }
 
     @Override
@@ -281,7 +276,11 @@ public class IntroActivity extends Activity implements TextureView.SurfaceTextur
         try {
             if (mPlayer != null && mPlayerPrepared && !mFinished) mPlayer.start();
         } catch (IllegalStateException ignored) { }
-        resumeCounter();
+        if (mCounterStarted && !mCounterRunning && !mFinished) {
+            mCounterRunning = true;
+            mLastTickTime = SystemClock.uptimeMillis();
+            mHandler.post(mCounterTick);
+        }
     }
 
     @Override
@@ -309,39 +308,5 @@ public class IntroActivity extends Activity implements TextureView.SurfaceTextur
                         | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
                         | View.SYSTEM_UI_FLAG_FULLSCREEN
                         | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY);
-    }
-
-    // ----------------------------------------------------------------- debug
-
-    private float getAnimatorScale() {
-        try {
-            return Settings.Global.getFloat(getContentResolver(),
-                    Settings.Global.ANIMATOR_DURATION_SCALE, 1f);
-        } catch (Throwable t) {
-            return -1f;
-        }
-    }
-
-    /** Returns the name of the phone's H.264 decoder, or "NONE". Only used for debug info. */
-    private String findAvcDecoder() {
-        try {
-            MediaCodecList list = new MediaCodecList(MediaCodecList.REGULAR_CODECS);
-            for (MediaCodecInfo info : list.getCodecInfos()) {
-                if (info.isEncoder()) continue;
-                for (String type : info.getSupportedTypes()) {
-                    if (type.equalsIgnoreCase("video/avc")) return info.getName();
-                }
-            }
-        } catch (Throwable t) {
-            return "check failed: " + t;
-        }
-        return "NONE";
-    }
-
-    private void debug(String message) {
-        Log.d(TAG, message);
-        if (!SHOW_DEBUG || mDebugText == null) return;
-        mDebugLog.append(message).append('\n');
-        mDebugText.setText(mDebugLog.toString().trim());
     }
 }
