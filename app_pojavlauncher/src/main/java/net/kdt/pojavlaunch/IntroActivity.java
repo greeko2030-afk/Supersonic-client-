@@ -5,39 +5,54 @@ import android.animation.AnimatorListenerAdapter;
 import android.animation.ValueAnimator;
 import android.app.Activity;
 import android.content.Intent;
-import android.net.Uri;
+import android.content.res.AssetFileDescriptor;
+import android.graphics.SurfaceTexture;
+import android.media.MediaPlayer;
 import android.os.Build;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.Gravity;
+import android.view.Surface;
+import android.view.TextureView;
 import android.view.View;
 import android.view.WindowManager;
 import android.view.animation.LinearInterpolator;
 import android.widget.FrameLayout;
 import android.widget.ProgressBar;
 import android.widget.TextView;
-import android.widget.Toast;
-import android.widget.VideoView;
 
 /**
  * Intro screen shown every time the app is opened.
- * Plays a full screen video. A small text "Optimizing your mobile" and a
- * counter (1 -> 100) are shown at the bottom. The counter takes exactly 16 seconds.
- * After that the normal launcher flow (TestStorageActivity) is opened.
+ * Plays a full screen video (res/raw/intro_video.mp4). A small text
+ * "Optimizing your mobile" and a counter (1 -> 100) are shown at the bottom.
+ * The counter takes exactly 16 seconds, then the normal launcher flow
+ * (TestStorageActivity) is opened.
  */
-public class IntroActivity extends Activity {
+public class IntroActivity extends Activity implements TextureView.SurfaceTextureListener {
     private static final String TAG = "IntroActivity";
+
+    /** Shows a small yellow debug text at the top left. Set to false when the video works. */
+    private static final boolean SHOW_DEBUG = true;
+
     private static final long INTRO_DURATION_MS = 16000L; // 16 seconds
     private static final int COUNT_FROM = 1;
     private static final int COUNT_TO = 100;
 
     private FrameLayout mRoot;
-    private VideoView mVideoView;
+    private TextureView mTextureView;
     private TextView mCounterText;
+    private TextView mDebugText;
     private ProgressBar mProgressBar;
+
+    private Surface mSurface;
+    private MediaPlayer mPlayer;
+    private boolean mPlayerPrepared = false;
 
     private ValueAnimator mCounterAnimator;
     private boolean mFinished = false;
+    private final StringBuilder mDebugLog = new StringBuilder();
+
+    private final Runnable mStartCounterFallback = this::startCounterIfNeeded;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -51,35 +66,96 @@ public class IntroActivity extends Activity {
         hideSystemUi();
 
         mRoot = findViewById(R.id.intro_root);
-        mVideoView = findViewById(R.id.intro_video);
+        mTextureView = findViewById(R.id.intro_texture);
         mCounterText = findViewById(R.id.intro_counter);
         mProgressBar = findViewById(R.id.intro_progress);
+        mDebugText = findViewById(R.id.intro_debug);
+        if (SHOW_DEBUG) mDebugText.setVisibility(View.VISIBLE);
 
         setupCounter();
-        setupVideo();
+        mTextureView.setSurfaceTextureListener(this);
+
+        // Safety: if the video is slow or broken, the counter still starts after 2.5 seconds.
+        mRoot.postDelayed(mStartCounterFallback, 2500);
     }
 
     // ---------------------------------------------------------------- video
 
-    private void setupVideo() {
-        Uri uri = Uri.parse("android.resource://" + getPackageName() + "/" + R.raw.intro_video);
+    @Override
+    public void onSurfaceTextureAvailable(SurfaceTexture st, int width, int height) {
+        debug("surface ready " + width + "x" + height);
+        mSurface = new Surface(st);
+        startPlayer();
+    }
 
-        mVideoView.setOnPreparedListener(mp -> {
-            mp.setLooping(true); // keeps playing if the video is shorter than 16 seconds
-            fitVideoToScreen(mp.getVideoWidth(), mp.getVideoHeight());
+    @Override
+    public void onSurfaceTextureSizeChanged(SurfaceTexture st, int width, int height) { }
+
+    @Override
+    public boolean onSurfaceTextureDestroyed(SurfaceTexture st) {
+        releasePlayer();
+        if (mSurface != null) {
+            mSurface.release();
+            mSurface = null;
+        }
+        return true;
+    }
+
+    @Override
+    public void onSurfaceTextureUpdated(SurfaceTexture st) { }
+
+    private void startPlayer() {
+        releasePlayer();
+        try {
+            mPlayer = new MediaPlayer();
+
+            AssetFileDescriptor afd = getResources().openRawResourceFd(R.raw.intro_video);
+            debug("video file size: " + afd.getLength() + " bytes");
+            mPlayer.setDataSource(afd.getFileDescriptor(), afd.getStartOffset(), afd.getLength());
+            afd.close();
+
+            mPlayer.setSurface(mSurface);
+            mPlayer.setLooping(true); // keeps playing if the video is shorter than 16 seconds
+
+            mPlayer.setOnVideoSizeChangedListener((mp, w, h) -> {
+                debug("video size " + w + "x" + h);
+                fitVideoToScreen(w, h);
+            });
+            mPlayer.setOnPreparedListener(mp -> {
+                mPlayerPrepared = true;
+                debug("prepared, duration " + mp.getDuration() + " ms");
+                fitVideoToScreen(mp.getVideoWidth(), mp.getVideoHeight());
+                mp.start();
+                startCounterIfNeeded();
+            });
+            mPlayer.setOnInfoListener((mp, what, extra) -> {
+                if (what == MediaPlayer.MEDIA_INFO_VIDEO_RENDERING_START) {
+                    debug("first frame shown");
+                }
+                return false;
+            });
+            mPlayer.setOnErrorListener((mp, what, extra) -> {
+                debug("ERROR what=" + what + " extra=" + extra);
+                Log.e(TAG, "Video error what=" + what + " extra=" + extra);
+                startCounterIfNeeded(); // do not block the user if the video fails
+                return true;
+            });
+            mPlayer.prepareAsync();
+        } catch (Throwable t) {
+            debug("EXCEPTION " + t);
+            Log.e(TAG, "Could not play intro video", t);
             startCounterIfNeeded();
-        });
+        }
+    }
 
-        mVideoView.setOnErrorListener((mp, what, extra) -> {
-            Log.e(TAG, "Video error what=" + what + " extra=" + extra);
-            Toast.makeText(this, "Intro video error: " + what + " / " + extra,
-                    Toast.LENGTH_LONG).show();
-            startCounterIfNeeded(); // do not block the user if the video fails
-            return true;
-        });
-
-        mVideoView.setVideoURI(uri);
-        mVideoView.start();
+    private void releasePlayer() {
+        mPlayerPrepared = false;
+        if (mPlayer != null) {
+            try {
+                mPlayer.release();
+            } catch (Throwable ignored) { }
+            mPlayer = null;
+        }
     }
 
     /** Scales the video up (keeping the aspect ratio) so it covers the whole screen. */
@@ -94,9 +170,16 @@ public class IntroActivity extends Activity {
             int targetW = Math.round(videoW * scale);
             int targetH = Math.round(videoH * scale);
 
-            FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(targetW, targetH, Gravity.CENTER);
-            mVideoView.setLayoutParams(lp);
+            mTextureView.setLayoutParams(
+                    new FrameLayout.LayoutParams(targetW, targetH, Gravity.CENTER));
         });
+    }
+
+    private void debug(String message) {
+        Log.d(TAG, message);
+        if (!SHOW_DEBUG || mDebugText == null) return;
+        mDebugLog.append(message).append('\n');
+        mDebugText.setText(mDebugLog.toString().trim());
     }
 
     // -------------------------------------------------------------- counter
@@ -143,7 +226,9 @@ public class IntroActivity extends Activity {
     @Override
     protected void onPause() {
         super.onPause();
-        if (mVideoView != null && mVideoView.isPlaying()) mVideoView.pause();
+        try {
+            if (mPlayer != null && mPlayerPrepared && mPlayer.isPlaying()) mPlayer.pause();
+        } catch (IllegalStateException ignored) { }
         if (mCounterAnimator != null && mCounterAnimator.isRunning()) mCounterAnimator.pause();
     }
 
@@ -151,18 +236,25 @@ public class IntroActivity extends Activity {
     protected void onResume() {
         super.onResume();
         hideSystemUi();
-        if (mVideoView != null && !mFinished) mVideoView.start();
+        try {
+            if (mPlayer != null && mPlayerPrepared && !mFinished) mPlayer.start();
+        } catch (IllegalStateException ignored) { }
         if (mCounterAnimator != null && mCounterAnimator.isPaused()) mCounterAnimator.resume();
     }
 
     @Override
     protected void onDestroy() {
         super.onDestroy();
+        if (mRoot != null) mRoot.removeCallbacks(mStartCounterFallback);
         if (mCounterAnimator != null) {
             mCounterAnimator.removeAllListeners();
             mCounterAnimator.cancel();
         }
-        if (mVideoView != null) mVideoView.stopPlayback();
+        releasePlayer();
+        if (mSurface != null) {
+            mSurface.release();
+            mSurface = null;
+        }
     }
 
     @Override
