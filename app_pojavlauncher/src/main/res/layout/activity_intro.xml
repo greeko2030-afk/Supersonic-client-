@@ -1,26 +1,30 @@
 <?xml version="1.0" encoding="utf-8"?>
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/intro_root"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="#000000">
 
-    <!-- Full screen video -->
-    <SurfaceView
-        android:id="@+id/intro_surface"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent" />
-
-    <!-- Dark overlay so the text is easy to read on top of the video -->
-    <View
+    <!-- Full screen video (size is adjusted in code to fill the screen) -->
+    <VideoView
+        android:id="@+id/intro_video"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:background="#66000000" />
+        android:layout_gravity="center" />
 
-    <!-- Text on top of the video -->
+    <!-- Soft dark gradient at the bottom so the small text is readable -->
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="140dp"
+        android:layout_gravity="bottom"
+        android:background="@drawable/intro_bottom_gradient" />
+
+    <!-- Small text at the bottom -->
     <LinearLayout
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_gravity="center"
+        android:layout_gravity="bottom|center_horizontal"
+        android:layout_marginBottom="24dp"
         android:gravity="center_horizontal"
         android:orientation="vertical">
 
@@ -30,31 +34,33 @@
             android:layout_height="wrap_content"
             android:text="@string/intro_optimizing"
             android:textColor="#FFFFFF"
-            android:textSize="22sp"
-            android:textStyle="bold"
+            android:textSize="13sp"
             android:letterSpacing="0.05"
             android:shadowColor="#000000"
-            android:shadowRadius="8" />
+            android:shadowRadius="6" />
 
         <TextView
             android:id="@+id/intro_counter"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
+            android:layout_marginTop="2dp"
             android:text="1%"
             android:textColor="#FFFFFF"
-            android:textSize="56sp"
+            android:textSize="20sp"
             android:textStyle="bold"
             android:shadowColor="#000000"
-            android:shadowRadius="10" />
+            android:shadowRadius="6" />
 
         <ProgressBar
             android:id="@+id/intro_progress"
             style="?android:attr/progressBarStyleHorizontal"
-            android:layout_width="260dp"
-            android:layout_height="6dp"
-            android:layout_marginTop="12dp"
+            android:layout_width="200dp"
+            android:layout_height="3dp"
+            android:layout_marginTop="8dp"
+            android:indeterminate="false"
             android:max="100"
-            android:progress="1" />
+            android:progress="1"
+            android:progressTint="#FFFFFF"
+            android:progressBackgroundTint="#55FFFFFF" />
     </LinearLayout>
 </FrameLayout>
