@@ -46,6 +46,7 @@
         <activity
             android:name=".IntroActivity"
             android:exported="true"
+            android:hardwareAccelerated="true"
             android:label="@string/supersonic_short_name"
             android:configChanges="keyboardHidden|orientation|screenSize|smallestScreenSize|screenLayout|keyboard|navigation|uiMode"
             android:screenOrientation="sensorLandscape"
