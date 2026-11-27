@@ -5,36 +5,37 @@ import android.animation.AnimatorListenerAdapter;
 import android.animation.ValueAnimator;
 import android.app.Activity;
 import android.content.Intent;
-import android.content.res.AssetFileDescriptor;
-import android.media.MediaPlayer;
+import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.util.Log;
-import android.view.SurfaceHolder;
-import android.view.SurfaceView;
+import android.view.Gravity;
 import android.view.View;
 import android.view.WindowManager;
 import android.view.animation.LinearInterpolator;
+import android.widget.FrameLayout;
 import android.widget.ProgressBar;
 import android.widget.TextView;
+import android.widget.Toast;
+import android.widget.VideoView;
 
 /**
  * Intro screen shown every time the app is opened.
- * Plays a full screen video with the text "Optimizing your mobile"
- * and a counter that goes from 1 to 100 in exactly 16 seconds.
- * After that it opens the normal launcher flow (TestStorageActivity).
+ * Plays a full screen video. A small text "Optimizing your mobile" and a
+ * counter (1 -> 100) are shown at the bottom. The counter takes exactly 16 seconds.
+ * After that the normal launcher flow (TestStorageActivity) is opened.
  */
-public class IntroActivity extends Activity implements SurfaceHolder.Callback {
+public class IntroActivity extends Activity {
     private static final String TAG = "IntroActivity";
     private static final long INTRO_DURATION_MS = 16000L; // 16 seconds
     private static final int COUNT_FROM = 1;
     private static final int COUNT_TO = 100;
 
-    private SurfaceView mSurfaceView;
+    private FrameLayout mRoot;
+    private VideoView mVideoView;
     private TextView mCounterText;
     private ProgressBar mProgressBar;
 
-    private MediaPlayer mMediaPlayer;
     private ValueAnimator mCounterAnimator;
     private boolean mFinished = false;
 
@@ -49,15 +50,58 @@ public class IntroActivity extends Activity implements SurfaceHolder.Callback {
         setContentView(R.layout.activity_intro);
         hideSystemUi();
 
-        mSurfaceView = findViewById(R.id.intro_surface);
+        mRoot = findViewById(R.id.intro_root);
+        mVideoView = findViewById(R.id.intro_video);
         mCounterText = findViewById(R.id.intro_counter);
         mProgressBar = findViewById(R.id.intro_progress);
 
-        mSurfaceView.getHolder().addCallback(this);
         setupCounter();
+        setupVideo();
     }
 
-    /** Counter 1 -> 100 over INTRO_DURATION_MS. */
+    // ---------------------------------------------------------------- video
+
+    private void setupVideo() {
+        Uri uri = Uri.parse("android.resource://" + getPackageName() + "/" + R.raw.intro_video);
+
+        mVideoView.setOnPreparedListener(mp -> {
+            mp.setLooping(true); // keeps playing if the video is shorter than 16 seconds
+            fitVideoToScreen(mp.getVideoWidth(), mp.getVideoHeight());
+            startCounterIfNeeded();
+        });
+
+        mVideoView.setOnErrorListener((mp, what, extra) -> {
+            Log.e(TAG, "Video error what=" + what + " extra=" + extra);
+            Toast.makeText(this, "Intro video error: " + what + " / " + extra,
+                    Toast.LENGTH_LONG).show();
+            startCounterIfNeeded(); // do not block the user if the video fails
+            return true;
+        });
+
+        mVideoView.setVideoURI(uri);
+        mVideoView.start();
+    }
+
+    /** Scales the video up (keeping the aspect ratio) so it covers the whole screen. */
+    private void fitVideoToScreen(final int videoW, final int videoH) {
+        if (videoW <= 0 || videoH <= 0) return;
+        mRoot.post(() -> {
+            int screenW = mRoot.getWidth();
+            int screenH = mRoot.getHeight();
+            if (screenW <= 0 || screenH <= 0) return;
+
+            float scale = Math.max((float) screenW / videoW, (float) screenH / videoH);
+            int targetW = Math.round(videoW * scale);
+            int targetH = Math.round(videoH * scale);
+
+            FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(targetW, targetH, Gravity.CENTER);
+            mVideoView.setLayoutParams(lp);
+        });
+    }
+
+    // -------------------------------------------------------------- counter
+
+    /** Counter 1 -> 100 over INTRO_DURATION_MS (linear, so it is smooth and steady). */
     private void setupCounter() {
         mCounterAnimator = ValueAnimator.ofInt(COUNT_FROM, COUNT_TO);
         mCounterAnimator.setDuration(INTRO_DURATION_MS);
@@ -70,7 +114,7 @@ public class IntroActivity extends Activity implements SurfaceHolder.Callback {
         mCounterAnimator.addListener(new AnimatorListenerAdapter() {
             @Override
             public void onAnimationEnd(Animator animation) {
-                // Only continue when the animation really finished (not when cancelled).
+                // Continue only when the animation really finished (not when cancelled).
                 if (mCounterAnimator != null && mCounterAnimator.getAnimatedFraction() >= 1f) {
                     goToLauncher();
                 }
@@ -78,60 +122,9 @@ public class IntroActivity extends Activity implements SurfaceHolder.Callback {
         });
     }
 
-    // ---------------------------------------------------------------- video
-
-    @Override
-    public void surfaceCreated(SurfaceHolder holder) {
-        startVideo(holder);
-    }
-
-    @Override
-    public void surfaceChanged(SurfaceHolder holder, int format, int width, int height) { }
-
-    @Override
-    public void surfaceDestroyed(SurfaceHolder holder) {
-        releasePlayer();
-    }
-
-    private void startVideo(SurfaceHolder holder) {
-        releasePlayer();
-        try {
-            mMediaPlayer = new MediaPlayer();
-            AssetFileDescriptor afd = getResources().openRawResourceFd(R.raw.intro_video);
-            mMediaPlayer.setDataSource(afd.getFileDescriptor(), afd.getStartOffset(), afd.getLength());
-            afd.close();
-            mMediaPlayer.setDisplay(holder);
-            // Fill the whole screen (crop the edges instead of black bars)
-            mMediaPlayer.setVideoScalingMode(MediaPlayer.VIDEO_SCALING_MODE_SCALE_TO_FIT_WITH_CROPPING);
-            mMediaPlayer.setLooping(true); // safety: keeps playing if the video is shorter than 16s
-            mMediaPlayer.setOnPreparedListener(mp -> {
-                mp.start();
-                startCounterIfNeeded();
-            });
-            mMediaPlayer.setOnErrorListener((mp, what, extra) -> {
-                Log.e(TAG, "Video error what=" + what + " extra=" + extra);
-                startCounterIfNeeded(); // do not block the user if the video fails
-                return true;
-            });
-            mMediaPlayer.prepareAsync();
-        } catch (Exception e) {
-            Log.e(TAG, "Could not play intro video", e);
-            startCounterIfNeeded();
-        }
-    }
-
     private void startCounterIfNeeded() {
         if (mCounterAnimator != null && !mCounterAnimator.isStarted() && !mFinished) {
             mCounterAnimator.start();
-        }
-    }
-
-    private void releasePlayer() {
-        if (mMediaPlayer != null) {
-            try {
-                mMediaPlayer.release();
-            } catch (Exception ignored) { }
-            mMediaPlayer = null;
         }
     }
 
@@ -150,7 +143,7 @@ public class IntroActivity extends Activity implements SurfaceHolder.Callback {
     @Override
     protected void onPause() {
         super.onPause();
-        if (mMediaPlayer != null && mMediaPlayer.isPlaying()) mMediaPlayer.pause();
+        if (mVideoView != null && mVideoView.isPlaying()) mVideoView.pause();
         if (mCounterAnimator != null && mCounterAnimator.isRunning()) mCounterAnimator.pause();
     }
 
@@ -158,9 +151,7 @@ public class IntroActivity extends Activity implements SurfaceHolder.Callback {
     protected void onResume() {
         super.onResume();
         hideSystemUi();
-        if (mMediaPlayer != null && !mMediaPlayer.isPlaying()) {
-            try { mMediaPlayer.start(); } catch (IllegalStateException ignored) { }
-        }
+        if (mVideoView != null && !mFinished) mVideoView.start();
         if (mCounterAnimator != null && mCounterAnimator.isPaused()) mCounterAnimator.resume();
     }
 
@@ -171,7 +162,7 @@ public class IntroActivity extends Activity implements SurfaceHolder.Callback {
             mCounterAnimator.removeAllListeners();
             mCounterAnimator.cancel();
         }
-        releasePlayer();
+        if (mVideoView != null) mVideoView.stopPlayback();
     }
 
     @Override
