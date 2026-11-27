@@ -42,10 +42,13 @@
             android:name="android.max_aspect"
             android:value="ratio_float" />
 
+        <!-- Intro video screen: now the first screen when the app is opened -->
         <activity
-            android:name=".TestStorageActivity"
+            android:name=".IntroActivity"
             android:exported="true"
             android:label="@string/supersonic_short_name"
+            android:configChanges="keyboardHidden|orientation|screenSize|smallestScreenSize|screenLayout|keyboard|navigation|uiMode"
+            android:screenOrientation="sensorLandscape"
             android:launchMode="singleTop">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -53,6 +56,11 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        <activity
+            android:name=".TestStorageActivity"
+            android:exported="false"
+            android:label="@string/supersonic_short_name"
+            android:launchMode="singleTop" />
         <activity
             android:name=".LauncherActivity"
             android:label="@string/supersonic_short_name"
