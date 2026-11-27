@@ -5,6 +5,14 @@
     android:layout_height="match_parent"
     android:background="#000000">
 
+    <!-- Still first frame, visible until the real video starts (no black screen) -->
+    <ImageView
+        android:id="@+id/intro_poster"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:scaleType="centerCrop"
+        android:src="@drawable/intro_poster" />
+
     <!-- Full screen video (size is adjusted in code to fill the screen) -->
     <TextureView
         android:id="@+id/intro_texture"
@@ -71,9 +79,9 @@
         android:layout_height="wrap_content"
         android:layout_gravity="top|start"
         android:layout_margin="8dp"
-        android:background="#99000000"
-        android:padding="4dp"
+        android:background="#CC000000"
+        android:padding="6dp"
         android:textColor="#FFFF00"
-        android:textSize="10sp"
+        android:textSize="11sp"
         android:visibility="gone" />
 </FrameLayout>
