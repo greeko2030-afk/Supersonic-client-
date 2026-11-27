@@ -7,6 +7,8 @@ import android.app.Activity;
 import android.content.Intent;
 import android.content.res.AssetFileDescriptor;
 import android.graphics.SurfaceTexture;
+import android.media.MediaCodecInfo;
+import android.media.MediaCodecList;
 import android.media.MediaPlayer;
 import android.os.Build;
 import android.os.Bundle;
@@ -31,7 +33,7 @@ import android.widget.TextView;
 public class IntroActivity extends Activity implements TextureView.SurfaceTextureListener {
     private static final String TAG = "IntroActivity";
 
-    /** Shows a small yellow debug text at the top left. Set to false when the video works. */
+    /** Shows a small yellow debug box at the top left. Set to false when the video works. */
     private static final boolean SHOW_DEBUG = true;
 
     private static final long INTRO_DURATION_MS = 16000L; // 16 seconds
@@ -40,6 +42,7 @@ public class IntroActivity extends Activity implements TextureView.SurfaceTextur
 
     private FrameLayout mRoot;
     private TextureView mTextureView;
+    private View mPoster;
     private TextView mCounterText;
     private TextView mDebugText;
     private ProgressBar mProgressBar;
@@ -47,12 +50,16 @@ public class IntroActivity extends Activity implements TextureView.SurfaceTextur
     private Surface mSurface;
     private MediaPlayer mPlayer;
     private boolean mPlayerPrepared = false;
+    private boolean mFirstFrameShown = false;
 
     private ValueAnimator mCounterAnimator;
     private boolean mFinished = false;
     private final StringBuilder mDebugLog = new StringBuilder();
 
     private final Runnable mStartCounterFallback = this::startCounterIfNeeded;
+    private final Runnable mNoFrameWatchdog = () -> {
+        if (!mFirstFrameShown) debug("WARNING: no video frame after 5 seconds");
+    };
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -67,16 +74,22 @@ public class IntroActivity extends Activity implements TextureView.SurfaceTextur
 
         mRoot = findViewById(R.id.intro_root);
         mTextureView = findViewById(R.id.intro_texture);
+        mPoster = findViewById(R.id.intro_poster);
         mCounterText = findViewById(R.id.intro_counter);
         mProgressBar = findViewById(R.id.intro_progress);
         mDebugText = findViewById(R.id.intro_debug);
         if (SHOW_DEBUG) mDebugText.setVisibility(View.VISIBLE);
+
+        debug("IntroActivity v4 started");
+        debug("device: " + Build.MODEL + ", Android API " + Build.VERSION.SDK_INT);
+        debug("H.264 decoder: " + findAvcDecoder());
 
         setupCounter();
         mTextureView.setSurfaceTextureListener(this);
 
         // Safety: if the video is slow or broken, the counter still starts after 2.5 seconds.
         mRoot.postDelayed(mStartCounterFallback, 2500);
+        mRoot.postDelayed(mNoFrameWatchdog, 5000);
     }
 
     // ---------------------------------------------------------------- video
@@ -130,7 +143,9 @@ public class IntroActivity extends Activity implements TextureView.SurfaceTextur
             });
             mPlayer.setOnInfoListener((mp, what, extra) -> {
                 if (what == MediaPlayer.MEDIA_INFO_VIDEO_RENDERING_START) {
+                    mFirstFrameShown = true;
                     debug("first frame shown");
+                    mPoster.setVisibility(View.GONE); // real video is visible now
                 }
                 return false;
             });
@@ -173,6 +188,22 @@ public class IntroActivity extends Activity implements TextureView.SurfaceTextur
             mTextureView.setLayoutParams(
                     new FrameLayout.LayoutParams(targetW, targetH, Gravity.CENTER));
         });
+    }
+
+    /** Returns the name of the phone's H.264 decoder, or "NONE". Only used for debug info. */
+    private String findAvcDecoder() {
+        try {
+            MediaCodecList list = new MediaCodecList(MediaCodecList.REGULAR_CODECS);
+            for (MediaCodecInfo info : list.getCodecInfos()) {
+                if (info.isEncoder()) continue;
+                for (String type : info.getSupportedTypes()) {
+                    if (type.equalsIgnoreCase("video/avc")) return info.getName();
+                }
+            }
+        } catch (Throwable t) {
+            return "check failed: " + t;
+        }
+        return "NONE";
     }
 
     private void debug(String message) {
@@ -245,7 +276,10 @@ public class IntroActivity extends Activity implements TextureView.SurfaceTextur
     @Override
     protected void onDestroy() {
         super.onDestroy();
-        if (mRoot != null) mRoot.removeCallbacks(mStartCounterFallback);
+        if (mRoot != null) {
+            mRoot.removeCallbacks(mStartCounterFallback);
+            mRoot.removeCallbacks(mNoFrameWatchdog);
+        }
         if (mCounterAnimator != null) {
             mCounterAnimator.removeAllListeners();
             mCounterAnimator.cancel();
