@@ -273,6 +273,8 @@ public class IntroActivity extends Activity implements TextureView.SurfaceTextur
     protected void onResume() {
         super.onResume();
         hideSystemUi();
+        // Check GitHub releases in the background while the intro is playing.
+        AppUpdater.checkInBackground(this);
         try {
             if (mPlayer != null && mPlayerPrepared && !mFinished) mPlayer.start();
         } catch (IllegalStateException ignored) { }
